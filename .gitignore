@@ -1,0 +1,15 @@
+# Virtual Environment & Python cache
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller build artifacts (uploaded to GitHub Releases instead of git tree)
+build/
+dist/
+
+# Runtime & Local Catalog Data
+.printops_bootstrap.json
+.staging_gcode/
+Gilgarips_Catalog/
+*.log

@@ -1,0 +1,2361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gilgarips PrintOps — Production Cockpit & Margins v2.1.0</title>
+    <link rel="icon" type="image/png" href="/assets/logo.png">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-6 font-sans">
+
+    <div class="max-w-7xl mx-auto space-y-6">
+        <!-- Header -->
+        <header class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+            <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div class="flex items-center gap-3.5">
+                    <img src="/assets/logo.png" alt="Gilgarips PrintOps Logo" class="w-12 h-12 rounded-xl shadow-lg border border-slate-700/80 shrink-0">
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                            Gilgarips PrintOps <span class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.1.0 Desktop</span>
+                        </h1>
+                        <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver, local Google Drive sync, and Gemini AI listing packs.</p>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button onclick="openAdminModal()" class="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 px-3.5 py-2 rounded-xl text-xs font-semibold border border-amber-500/40 transition flex items-center gap-1.5 shadow">
+                        <span>⚙️</span> Admin Center
+                    </button>
+
+                    <label class="flex items-center gap-2 cursor-pointer bg-slate-950/70 border border-slate-800 px-3 py-2 rounded-xl text-xs text-slate-300">
+                        <input type="checkbox" id="autoDownloadToggle" onchange="toggleAutoDownload(this.checked)" class="w-3.5 h-3.5 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+                        <span>Auto-Download JSON</span>
+                    </label>
+
+                    <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-slate-700 transition" title="Import active listings catalog">
+                        📂 Import Listings CSV
+                        <input type="file" id="etsyCsvInput" accept=".csv" class="hidden" onchange="handleEtsyCatalogImport(event)">
+                    </label>
+
+                    <label class="bg-indigo-950/70 hover:bg-indigo-900/80 text-indigo-300 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-indigo-800/60 transition shadow-lg" title="Auto-populate YTD sales counts from one or more Etsy statements">
+                        📈 Import Etsy Sales CSV(s)
+                        <input type="file" id="etsySalesInput" accept=".csv" multiple class="hidden" onchange="handleEtsySalesImport(event)">
+                    </label>
+
+                    <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-slate-700 transition">
+                        📥 Import Backup JSON
+                        <input type="file" id="backupJsonInput" accept=".json" class="hidden" onchange="importBackupData(event)">
+                    </label>
+
+                    <button onclick="exportData()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-lg transition">
+                        💾 Save Backup JSON
+                    </button>
+                </div>
+            </div>
+
+            <!-- Storage Directory Bar & Uploaded Months Indicator Grid -->
+            <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-3">
+                <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-950/80 border border-slate-800/90 px-3.5 py-2 rounded-xl text-xs">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <span class="text-emerald-400 font-semibold shrink-0">🟢 Local Storage Root:</span>
+                        <code id="headerStorageRoot" class="text-slate-300 font-mono truncate">Loading...</code>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="openStorageFolder()" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg border border-slate-700 transition">📂 Open in Explorer</button>
+                        <button onclick="openAdminModal()" class="text-[11px] text-indigo-400 hover:text-indigo-300 transition">Change Path</button>
+                    </div>
+                </div>
+
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Etsy Statement Uploads:</span>
+                        <span class="text-[11px] text-slate-500">(Click to toggle manually)</span>
+                    </div>
+                    <div class="grid grid-cols-6 sm:grid-cols-12 gap-1.5 flex-1 max-w-3xl" id="monthsGrid"></div>
+                    <div>
+                        <button onclick="resetUploadedMonths()" class="text-[11px] text-slate-500 hover:text-slate-300 transition">Clear All</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left Column: Estimator & Slicer Ingestion -->
+            <div class="lg:col-span-1 space-y-6">
+                
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                        <h2 class="text-lg font-semibold text-indigo-300" id="formHeader">Item & Print Estimator</h2>
+                        <button id="cancelEditBtn" onclick="resetForm()" class="hidden text-xs text-rose-400 hover:text-rose-300 border border-rose-900/40 bg-rose-950/20 px-2 py-1 rounded">Cancel Edit</button>
+                    </div>
+
+                    <!-- Drag and Drop Slicer Dropzone -->
+                    <div id="dropzone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)" class="border-2 border-dashed border-indigo-500/40 hover:border-indigo-400 bg-indigo-950/20 hover:bg-indigo-950/40 rounded-xl p-3.5 text-center transition cursor-pointer">
+                        <input type="file" id="slicerFileInput" accept=".gcode,.3mf" class="hidden" onchange="handleSlicerFile(this.files[0])">
+                        <label for="slicerFileInput" class="cursor-pointer block">
+                            <span class="text-xl">🖨️</span>
+                            <p class="text-xs font-semibold text-indigo-300 mt-1">Drop OrcaSlicer / Bambu G-Code or .3MF</p>
+                            <p class="text-[10px] text-slate-400">Extracts grams, hours, bed temp, 3D bounding box (+2" pad) & copies to product folder</p>
+                        </label>
+                    </div>
+
+                    <!-- 3D Spatial Packaging Fit Feedback Banner -->
+                    <div id="spatialFitBanner" class="hidden rounded-xl p-3 border text-xs space-y-1.5"></div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Item Title / Name</label>
+                        <input type="text" id="itemName" value="Gothic Skull Dice Tower" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Sale Price ($)</label>
+                            <input type="number" id="salePrice" value="38.00" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Base / Sourcing Cost ($)</label>
+                            <input type="number" id="itemCost" value="0.00" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                        </div>
+                    </div>
+
+                    <!-- Shipping & Box Presets -->
+                    <div class="border-t border-slate-800 pt-3 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Packaging & 3D Spatial DIM</h3>
+                            <span id="dimStatusBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">Regular</span>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-medium text-slate-400 mb-1">Stock Box / Carrier Preset</label>
+                            <select id="boxPresetSelect" onchange="applyBoxPreset(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                                <option value="custom">Custom Dimensions</option>
+                                <optgroup label="UPS Blank Security Suite">
+                                    <option value="ups_small">UPS Blank Security - Small: 9 × 6 × 3 in</option>
+                                    <option value="ups_medium">UPS Blank Security - Medium: 12 × 10.5 × 3 in</option>
+                                </optgroup>
+                                <optgroup label="Poshmark / USPS Priority Suite">
+                                    <option value="usps_box4_square">USPS Box 4 Square (O-BOX4): 7 × 7 × 6 in</option>
+                                    <option value="usps_o1092">USPS Box 4 (O-1092): 13.375 × 12.125 × 2.75 in</option>
+                                    <option value="usps_o1097">USPS Box 7 (O-1097): 14 × 11.25 × 2.25 in</option>
+                                    <option value="usps_shoebox">USPS Priority Shoe Box: 14.375 × 7.5 × 5.125 in</option>
+                                    <option value="usps_mfrb1">USPS Medium Flat Rate 1: 11 × 8.5 × 5.5 in</option>
+                                    <option value="usps_mfrb2">USPS Medium Flat Rate 2: 13.625 × 11.875 × 3.375 in</option>
+                                    <option value="usps_lfrb">USPS Large Flat Rate Box: 12 × 12 × 8 in (DIM Risk)</option>
+                                </optgroup>
+                                <optgroup label="Standard Corrugated Presets">
+                                    <option value="7x5x4">Box #1: 7 × 5 × 4 in (Small Accessories)</option>
+                                    <option value="9x6x4" selected>Box #2: 9 × 6 × 4 in (Dice Towers / Trays)</option>
+                                    <option value="12x9x4">Box #3: 12 × 9 × 4 in (Medium Decor / Plaques)</option>
+                                    <option value="12x12x8">Box #4: 12 × 12 × 8 in (Large Gothic Shelves - DIM Risk)</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Actual Weight (oz)</label>
+                                <input type="number" id="packageWeight" value="14" step="1" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Shipping Charged ($)</label>
+                                <input type="number" id="shippingCharged" value="6.50" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-3 gap-2">
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-400 mb-1">Box L (in)</label>
+                                <input type="number" id="boxLength" value="9" step="0.125" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-400 mb-1">Box W (in)</label>
+                                <input type="number" id="boxWidth" value="6" step="0.125" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-medium text-slate-400 mb-1">Box H (in)</label>
+                                <input type="number" id="boxHeight" value="4" step="0.125" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            </div>
+                        </div>
+
+                        <!-- Interactive Printable Object Bounding Box -->
+                        <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[10px] font-semibold uppercase text-slate-400">Part Bounding Box (in) + 2" Pad</span>
+                                <button type="button" onclick="testManual3DFit()" class="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold">🔄 Solve 3D Fit</button>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <input type="number" id="objX" placeholder="Obj X (in)" step="0.1" class="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200" title="Printable Object X (inches)">
+                                <input type="number" id="objY" placeholder="Obj Y (in)" step="0.1" class="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200" title="Printable Object Y (inches)">
+                                <input type="number" id="objZ" placeholder="Obj Z (in)" step="0.1" class="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200" title="Printable Object Z (inches)">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="flex items-center gap-2 cursor-pointer pt-1">
+                                <input type="checkbox" id="freeShippingOver35" checked onchange="calculateAll()" class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-0">
+                                <span class="text-xs font-medium text-slate-300">Offer Free Shipping if Sale Price ≥ $35</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 3D Print Parameters -->
+                    <div class="border-t border-slate-800 pt-3 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">3D Printing Specs</h3>
+                            <div class="flex items-center gap-1.5">
+                                <span id="bedTempBadge" class="text-[10px] font-mono text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/60">Bed: 60°C</span>
+                                <span id="farmYieldBadge" class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">Yield: --</span>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Filament (g)</label>
+                                <input type="number" id="filamentGrams" value="165" step="1" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Filament ($/kg)</label>
+                                <input type="number" id="filamentCostPerKg" value="20.00" step="0.50" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Print Time (Hrs)</label>
+                                <input type="number" id="printHours" value="6.5" step="0.25" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">DTE Power ($/kWh)</label>
+                                <input type="number" id="powerRate" value="0.21" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Design Source</label>
+                                <select id="patreonSource" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" onchange="calculateAll()">
+                                    <option value="Gilgarips 3D">Gilgarips 3D (In-House - $0)</option>
+                                    <option value="Fates End">Fates End ($15)</option>
+                                    <option value="Lightspeed">Lightspeed ($9)</option>
+                                    <option value="Akshan Designs">Akshan Designs ($16)</option>
+                                    <option value="SkyPrints">SkyPrints ($15)</option>
+                                    <option value="None">None / Reselling</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Supplies/Hardware ($)</label>
+                                <input type="number" id="suppliesCost" value="1.25" step="0.25" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            </div>
+                        </div>
+
+                        <!-- Buffer Stock Tracking & Material -->
+                        <div class="grid grid-cols-2 gap-3 pt-1">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Physical Stock Buffer</label>
+                                <input type="number" id="stockOnHand" value="2" min="0" step="1" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Material Type</label>
+                                <select id="materialType" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                                    <option value="PLA Pro / Tough PLA">PLA Pro / Tough PLA</option>
+                                    <option value="Matte PLA">Matte PLA</option>
+                                    <option value="PETG">PETG</option>
+                                    <option value="Dual-Color Silk">Dual-Color Silk PLA</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Product Photo Dropzone (Auto-saves as 01_hero.jpg, 02_detail.jpg) -->
+                        <div class="border-t border-slate-800 pt-3 space-y-2">
+                            <div class="flex justify-between items-center">
+                                <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Product Photos</span>
+                                <span class="text-[10px] text-slate-500 font-mono">01_hero.jpg, 02_detail.jpg...</span>
+                            </div>
+                            <div id="photoDropzone" ondragover="event.preventDefault(); this.classList.add('border-emerald-400')" ondragleave="this.classList.remove('border-emerald-400')" ondrop="handleFormPhotoDrop(event)" class="border border-dashed border-slate-700 hover:border-emerald-400 bg-slate-950/60 rounded-xl p-2.5 text-center transition cursor-pointer">
+                                <input type="file" id="formPhotoInput" accept="image/*" multiple class="hidden" onchange="uploadPhotosForCurrentForm(this.files)">
+                                <label for="formPhotoInput" class="cursor-pointer block text-xs text-slate-300">
+                                    📷 Drop or Click to Upload Product Photos
+                                </label>
+                            </div>
+                            <div id="formPhotoGallery" class="flex flex-wrap gap-2 pt-1"></div>
+                        </div>
+                    </div>
+
+                    <button id="saveBtn" onclick="saveCurrentItem()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl transition shadow-lg mt-2">Save Item to Catalog & Scaffold Disk</button>
+                </div>
+
+            </div>
+
+            <!-- Right Column: Visual Margin Drag, Live Matrix & Fees -->
+            <div class="lg:col-span-2 space-y-6">
+                
+                <!-- Free Shipping & DIM Alert -->
+                <div id="dimAlertCard" class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl transition space-y-3"></div>
+
+                <!-- Live Platform Comparison Card -->
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-4">
+                        <div>
+                            <h2 class="text-xl font-bold text-white" id="activeItemDisplay">Live Margin Breakdown</h2>
+                            <p class="text-xs text-slate-400">Comparing real net margins across active channels after marketplace takes & postage outflow.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="text-xs font-mono bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-slate-300">
+                                Unit Direct Cost: <span id="summaryTotalCost" class="text-indigo-400 font-bold">$0.00</span>
+                            </div>
+                            <div class="text-xs font-mono bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-emerald-300">
+                                Machine Rate: <span id="summaryMachineRate" class="font-bold">$0.00/hr</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Platform Comparison Grid -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3" id="platformResultsGrid"></div>
+
+                    <!-- Target Pricing Grid -->
+                    <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-3">
+                        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                            <span>🎯</span> Recommended Price Points (Etsy Net Margin Targets)
+                        </h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs" id="targetPricingGrid"></div>
+                    </div>
+                </div>
+
+                <!-- Total Platform Fees Paid Summary Card -->
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-3">
+                        <div>
+                            <h2 class="text-lg font-semibold text-indigo-300">Platform Take-Rate Totals (YTD)</h2>
+                            <p class="text-xs text-slate-400">Total transaction fees paid across active marketplaces vs Mayhem direct savings potential.</p>
+                        </div>
+                        <div class="text-xs font-mono bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-rose-400 font-bold">
+                            Total Leakage: <span id="grandTotalFees">$0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3" id="platformTotalFeesGrid"></div>
+                </div>
+
+                <!-- Patreon & In-House Performance Tracker -->
+                <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-3">
+                        <div>
+                            <h2 class="text-lg font-semibold text-indigo-300">Design Performance & Sub ROI</h2>
+                            <p class="text-xs text-slate-400">Total YTD units logged across platforms vs monthly subscription fee overhead.</p>
+                        </div>
+                        <div class="flex items-center gap-2.5">
+                            <span id="totalSubOverheadBadge" class="text-xs font-mono text-slate-400">Total Sub Overhead: $55.00/mo</span>
+                            <button onclick="openAdminModal('patreons')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-indigo-300 px-2.5 py-1 rounded-lg border border-slate-700 transition">✏️ Edit Patreons</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-3" id="patreonStatsGrid"></div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- Full-Width Catalog Table -->
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-lg font-semibold text-indigo-300">Catalog Operations & Local Disk Assets</h2>
+                    <span class="text-xs text-slate-400 font-mono" id="catalogCount">0 items</span>
+                </div>
+                
+                <div class="w-full sm:w-80 relative">
+                    <input type="text" id="catalogSearch" oninput="renderCatalog()" placeholder="Search Item or Design Source (min 3 chars)..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                    <span class="absolute right-3 top-2 text-xs text-slate-500">🔍</span>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-300">
+                    <thead class="bg-slate-950 text-xs uppercase text-slate-400 border-b border-slate-800">
+                        <tr>
+                            <th class="p-3">Item / Local Assets</th>
+                            <th class="p-3">Unit Cost</th>
+                            <th class="p-3">Unit Price</th>
+                            <th class="p-3">Stock Buffer</th>
+                            <th class="p-3" id="ytdHeaderCell">YTD Units</th>
+                            <th class="p-3 text-right">Total Units</th>
+                            <th class="p-3 text-right">Total Sales</th>
+                            <th class="p-3 text-right">Total Profit</th>
+                            <th class="p-3 text-right">Yield / Hr</th>
+                            <th class="p-3 text-right">Action Tools</th>
+                        </tr>
+                    </thead>
+                    <tbody id="catalogTableBody" class="divide-y divide-slate-800/60 text-xs"></tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Hidden row photo uploader input -->
+    <input type="file" id="rowPhotoInput" accept="image/*" multiple class="hidden" onchange="handleRowPhotoSelected(event)">
+
+    <!-- MODAL 1: 1-Click Listing Pack Modal (Native Gemini AI + Instant Fallback) -->
+    <div id="listingModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span>📦</span> 1-Click Multi-Channel Listing Pack
+                        </h3>
+                        <span id="listingSourceBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">Template</span>
+                    </div>
+                    <p class="text-xs text-slate-400 mt-0.5" id="modalItemTitle">Item Name</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="regenGeminiBtn" onclick="regenerateListingWithGemini()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold shadow flex items-center gap-1 transition">
+                        <span>✨</span> Generate with Gemini AI
+                    </button>
+                    <button onclick="closeListingModal()" class="text-slate-400 hover:text-white text-lg px-1">✕</button>
+                </div>
+            </div>
+
+            <div id="listingStatusNote" class="hidden text-[11px] bg-slate-950 border border-slate-800 text-slate-400 px-3 py-2 rounded-lg"></div>
+
+            <!-- SEO Title -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs">
+                    <span class="font-semibold text-slate-300">Optimized Title (Etsy / eBay / Mayhem)</span>
+                    <span id="titleCharCount" class="font-mono text-slate-500">0/140</span>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="modalTitleInput" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono">
+                    <button onclick="copyField('modalTitleInput')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0">Copy</button>
+                </div>
+            </div>
+
+            <!-- 13 Tags -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs">
+                    <span class="font-semibold text-slate-300">13 Compliant Etsy Tags (Max 20 chars each)</span>
+                    <span id="tagsCountBadge" class="font-mono text-emerald-400 text-[10px]">13 tags ready</span>
+                </div>
+                <div class="flex gap-2">
+                    <textarea id="modalTagsInput" readonly rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono"></textarea>
+                    <button onclick="copyField('modalTagsInput')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0">Copy</button>
+                </div>
+            </div>
+
+            <!-- Mayhem & Marketplace Description -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs">
+                    <span class="font-semibold text-slate-300">Formatted Description & Spec Sheet (Mayhem / Etsy)</span>
+                    <span class="font-mono text-slate-500 text-[10px]">Markdown specs included</span>
+                </div>
+                <div class="relative">
+                    <textarea id="modalDescInput" readonly rows="6" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono"></textarea>
+                    <button onclick="copyField('modalDescInput')" class="absolute top-2 right-2 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded text-xs font-semibold">Copy Description</button>
+                </div>
+            </div>
+
+            <!-- Social Hook (2-Sentence Reels / TikTok Script) -->
+            <div class="space-y-1">
+                <div class="flex justify-between text-xs">
+                    <span class="font-semibold text-cyan-300">🎬 Short-Form Video / Reels / TikTok Hook (2 Sentences)</span>
+                    <span class="font-mono text-slate-500 text-[10px]">Script ready</span>
+                </div>
+                <div class="flex gap-2">
+                    <textarea id="modalSocialHookInput" readonly rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono"></textarea>
+                    <button onclick="copyField('modalSocialHookInput')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0">Copy</button>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button onclick="closeListingModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-xs font-semibold">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: Printable 4x6 Mayhem Conversion Slip -->
+    <div id="slipModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+                <div>
+                    <h3 class="text-base font-bold text-white">🖨️ Printable 4x6 Conversion Insert</h3>
+                    <p class="text-xs text-slate-400">Put this in your Etsy package to drive direct Mayhem repeat sales.</p>
+                </div>
+                <button onclick="closeSlipModal()" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <!-- The Printable Card Preview -->
+            <div id="printableCard" class="bg-white text-slate-900 p-6 rounded-lg border border-slate-300 space-y-3 font-sans shadow-inner">
+                <div class="border-b-2 border-slate-900 pb-2 text-center flex flex-col items-center">
+                    <img src="/assets/logo.png" alt="Gilgarips 3D Studio" class="w-12 h-12 rounded-lg mb-1.5 shadow">
+                    <h2 id="slipStudioName" class="text-lg font-black tracking-wider uppercase">Gilgarips 3D Studio</h2>
+                    <p id="slipTagline" class="text-[10px] text-slate-600 font-medium">Tabletop Gaming Gear & Gothic Home Decor</p>
+                </div>
+                <div class="text-center py-2 space-y-1">
+                    <p class="text-xs font-bold text-slate-800">Thank you for your order!</p>
+                    <p class="text-[11px] text-slate-600 leading-snug">Hand-crafted and precision printed in Michigan. We hope this piece elevates your table or home altar.</p>
+                </div>
+                <div class="bg-slate-100 border border-dashed border-slate-400 p-3 rounded text-center space-y-1">
+                    <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Direct Customer VIP Discount</span>
+                    <div id="slipCouponCode" class="text-base font-black font-mono tracking-widest text-indigo-700">DIRECT15</div>
+                    <p class="text-[10px] text-slate-700">Save <span id="slipDiscountPct">15</span>% on all future orders & custom commissions exclusively at our primary storefront:</p>
+                    <div id="slipStoreUrl" class="text-xs font-bold text-slate-900 pt-1">Mayhem Marketplace / Gilgarips3D</div>
+                </div>
+                <div class="text-[9px] text-slate-500 text-center pt-1">
+                    Printed with high-grade PLA • Keep away from high heat (>125°F)
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center pt-2">
+                <button onclick="printSlip()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow">Print 4x6 Slip</button>
+                <button onclick="closeSlipModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: Admin Center (Storage Root, Dynamic Marketplace Registry, Gemini AI & Slip Config) -->
+    <div id="adminModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full p-6 space-y-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-3">
+                    <img src="/assets/logo.png" alt="Gilgarips PrintOps" class="w-9 h-9 rounded-lg border border-slate-700">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            Gilgarips PrintOps — Admin Center
+                        </h3>
+                        <p class="text-xs text-slate-400">Configure Master Storage Directory (Google Drive), Dynamic Marketplace Registry, Backed Patreons, Gemini AI Engine, and 4x6 Conversion Slip.</p>
+                    </div>
+                </div>
+                <button onclick="closeAdminModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+            </div>
+
+            <!-- Section 1: Master Storage Directory -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                <div class="flex justify-between items-center">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400">1. Master Storage Directory (Local / Google Drive)</h4>
+                    <span class="text-[10px] font-mono text-slate-500">Auto-scaffolds catalog_state.json, settings.json & /products/&lt;slug&gt;/</span>
+                </div>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="text" id="adminStorageRoot" placeholder="e.g. G:\My Drive\Gilgarips_Catalog" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                    <button type="button" onclick="browseStorageDirectory()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-700 shrink-0">📁 Browse Folder...</button>
+                </div>
+            </div>
+
+            <!-- Section 2: Dynamic Marketplace Registry -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-300">2. Dynamic Marketplace Registry</h4>
+                        <p class="text-[11px] text-slate-400">Toggle active channels anytime. Fee rate formulas are locked by default to prevent accidental margin drift.</p>
+                    </div>
+                    <button type="button" id="unlockFeesBtn" onclick="togglePlatformFeeLock()" class="bg-amber-950/70 hover:bg-amber-900/80 text-amber-300 border border-amber-700/70 px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0">
+                        <span>🔒</span> Unlock Fee Rates
+                    </button>
+                </div>
+
+                <!-- Warning Banner shown when Fee Rates are unlocked -->
+                <div id="feeUnlockWarningBanner" class="hidden bg-rose-950/50 border border-rose-800/80 text-rose-200 px-3.5 py-2.5 rounded-xl text-xs flex items-start gap-2.5">
+                    <span class="text-base leading-none mt-0.5">⚠️</span>
+                    <div>
+                        <div class="font-bold text-rose-300">Platform Fee Formulas Unlocked</div>
+                        <p class="text-[11px] text-rose-200/90 mt-0.5">Changes to commission percentages, processing rates, fixed transaction fees, or monthly subscriptions will immediately alter Net Margins, Recommended Target Prices, and YTD Platform Leakage across your entire catalog.</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="text-[10px] uppercase text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="py-2 px-2">Active</th>
+                                <th class="py-2 px-2">Channel</th>
+                                <th class="py-2 px-2">Fee Model</th>
+                                <th class="py-2 px-2">Commission %</th>
+                                <th class="py-2 px-2">Processing %</th>
+                                <th class="py-2 px-2">Listing Fee ($)</th>
+                                <th class="py-2 px-2">Fixed Fee ($)</th>
+                                <th class="py-2 px-2">Monthly Sub ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminChannelsTableBody" class="divide-y divide-slate-800/60"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Section 3: Backed Patreons & Design Subscriptions -->
+            <div id="adminPatreonsSection" class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-300">3. Backed Patreons & Design Subscriptions</h4>
+                        <p class="text-[11px] text-slate-400">Manage the commercial 3D designer Patreons you back and their monthly subscription costs for ROI tracking.</p>
+                    </div>
+                    <button type="button" onclick="addAdminPatreonRow()" class="bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-700/70 px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 shrink-0">
+                        <span>＋</span> Add Patreon / Designer
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs text-slate-300">
+                        <thead class="text-[10px] uppercase text-slate-400 border-b border-slate-800">
+                            <tr>
+                                <th class="py-2 px-2">Active</th>
+                                <th class="py-2 px-2">Designer / Patreon Name</th>
+                                <th class="py-2 px-2">Monthly Sub ($/mo)</th>
+                                <th class="py-2 px-2">Badge Color</th>
+                                <th class="py-2 px-2 text-right">Remove</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminPatreonsTableBody" class="divide-y divide-slate-800/60"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Section 4 & 5: Native Gemini Listing Engine & 4x6 Conversion Slip -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-purple-300">4. Native Gemini AI Listing Engine (google-genai)</h4>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Google AI Studio API Key</label>
+                        <input type="password" id="adminGeminiKey" placeholder="AIzaSy..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Gemini Model</label>
+                        <input type="text" id="adminGeminiModel" value="gemini-2.5-flash" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Brand Persona / Voice System Prompt</label>
+                        <textarea id="adminBrandPersona" rows="4" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"></textarea>
+                    </div>
+                </div>
+
+                <!-- Section 5: 4x6 Conversion Slip Settings -->
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-amber-300">5. 4x6 Mayhem Conversion Slip Configuration</h4>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Studio Header Name</label>
+                        <input type="text" id="adminSlipStudio" value="Gilgarips 3D Studio" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Studio Tagline</label>
+                        <input type="text" id="adminSlipTagline" value="Tabletop Gaming Gear & Gothic Home Decor" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">VIP Coupon Code</label>
+                            <input type="text" id="adminSlipCoupon" value="DIRECT15" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Discount (%)</label>
+                            <input type="number" id="adminSlipDiscount" value="15" min="1" max="90" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-400 mb-1">Primary Storefront URL / Callout</label>
+                        <input type="text" id="adminSlipUrl" value="Mayhem Marketplace / Gilgarips3D" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button onclick="closeAdminModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold">Cancel</button>
+                <button onclick="saveAdminSettings()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-lg">💾 Save Admin Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let catalog = [];
+        let uploadedMonths = {"Jan":false,"Feb":false,"Mar":false,"Apr":false,"May":false,"Jun":false,"Jul":false,"Aug":false,"Sep":false,"Oct":false,"Nov":false,"Dec":false};
+        let appSettings = {
+            storage_root: "",
+            auto_download_json: false,
+            gemini_api_key: "",
+            gemini_model: "gemini-2.5-flash",
+            brand_persona: "",
+            slip_config: {
+                studio_name: "Gilgarips 3D Studio",
+                tagline: "Tabletop Gaming Gear & Gothic Home Decor",
+                coupon_code: "DIRECT15",
+                discount_pct: 15,
+                store_url: "Mayhem Marketplace / Gilgarips3D"
+            },
+            channels: [
+                { key: "Mayhem", name: "Mayhem Marketplace", short: "My", active: true, fee_model: "subscription", listing_fee: 0, commission_pct: 0, processing_pct: 0, fixed_fee: 0, monthly_sub: 10.0, under_15_flat: 0, buyer_pays_label: false, color: "emerald" },
+                { key: "Etsy", name: "Etsy", short: "Et", active: true, fee_model: "standard", listing_fee: 0.20, commission_pct: 6.5, processing_pct: 3.0, fixed_fee: 0.25, monthly_sub: 0, under_15_flat: 0, buyer_pays_label: false, color: "indigo" },
+                { key: "eBay", name: "eBay", short: "eB", active: true, fee_model: "standard", listing_fee: 0, commission_pct: 13.25, processing_pct: 0, fixed_fee: 0.40, monthly_sub: 0, under_15_flat: 0, buyer_pays_label: false, color: "indigo" },
+                { key: "Poshmark", name: "Poshmark", short: "Po", active: true, fee_model: "poshmark", listing_fee: 0, commission_pct: 20.0, processing_pct: 0, fixed_fee: 0, monthly_sub: 0, under_15_flat: 2.95, buyer_pays_label: true, color: "indigo" },
+                { key: "Depop", name: "Depop", short: "Dp", active: true, fee_model: "standard", listing_fee: 0, commission_pct: 3.3, processing_pct: 0, fixed_fee: 0.45, monthly_sub: 0, under_15_flat: 0, buyer_pays_label: false, color: "rose" },
+                { key: "TikTok", name: "TikTok Shop", short: "TT", active: true, fee_model: "standard", listing_fee: 0, commission_pct: 6.0, processing_pct: 0, fixed_fee: 0.30, monthly_sub: 0, under_15_flat: 0, buyer_pays_label: false, color: "cyan" }
+            ],
+            patreons: [
+                { name: "Gilgarips 3D", subCost: 0, color: "text-emerald-400", active: true },
+                { name: "Fates End", subCost: 15, color: "text-purple-400", active: true },
+                { name: "Lightspeed", subCost: 9, color: "text-amber-400", active: true },
+                { name: "Akshan Designs", subCost: 16, color: "text-cyan-400", active: true },
+                { name: "SkyPrints", subCost: 15, color: "text-blue-400", active: true },
+                { name: "None", subCost: 0, color: "text-slate-400", active: true }
+            ]
+        };
+
+        let editingIndex = -1;
+        let activeListingModalIndex = -1;
+        let currentStagedGcodeFilename = null;
+        let currentBedTempC = 60;
+        let pendingPhotoRowSlug = null;
+        let platformFeesUnlocked = false;
+        let editingPatreons = [];
+
+        const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+        const DEFAULT_PATREON_LIST = [
+            { name: "Gilgarips 3D", subCost: 0, color: "text-emerald-400", active: true },
+            { name: "Fates End", subCost: 15, color: "text-purple-400", active: true },
+            { name: "Lightspeed", subCost: 9, color: "text-amber-400", active: true },
+            { name: "Akshan Designs", subCost: 16, color: "text-cyan-400", active: true },
+            { name: "SkyPrints", subCost: 15, color: "text-blue-400", active: true },
+            { name: "None", subCost: 0, color: "text-slate-400", active: true }
+        ];
+
+        function getPatreonsList() {
+            if (Array.isArray(appSettings.patreons) && appSettings.patreons.length > 0) {
+                return appSettings.patreons;
+            }
+            return DEFAULT_PATREON_LIST;
+        }
+
+        const BOX_PRESETS = {
+            "ups_small": { l: 9, w: 6, h: 3 },
+            "ups_medium": { l: 12, w: 10.5, h: 3 },
+            "usps_box4_square": { l: 7, w: 7, h: 6 },
+            "usps_o1092": { l: 13.375, w: 12.125, h: 2.75 },
+            "usps_o1097": { l: 14, w: 11.25, h: 2.25 },
+            "usps_shoebox": { l: 14.375, w: 7.5, h: 5.125 },
+            "usps_mfrb1": { l: 11, w: 8.5, h: 5.5 },
+            "usps_mfrb2": { l: 13.625, w: 11.875, h: 3.375 },
+            "usps_lfrb": { l: 12, w: 12, h: 8 },
+            "7x5x4": { l: 7, w: 5, h: 4 },
+            "9x6x4": { l: 9, w: 6, h: 4 },
+            "12x9x4": { l: 12, w: 9, h: 4 },
+            "12x12x8": { l: 12, w: 12, h: 8 }
+        };
+
+        function slugify(str) {
+            if (!str) return 'unnamed-item';
+            return str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'unnamed-item';
+        }
+
+        function normalizeString(str) {
+            if (!str) return '';
+            return str
+                .replace(/&quot;/g, '"')
+                .replace(/&amp;/g, '&')
+                .replace(/&#39;/g, "'")
+                .replace(/&#8211;/g, '-')
+                .replace(/[–—]/g, '-')
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function getActiveChannels() {
+            return (appSettings.channels || []).filter(c => c.active !== false);
+        }
+
+        function getChannelByKey(key) {
+            return (appSettings.channels || []).find(c => c.key === key);
+        }
+
+        // USPS Ground Advantage Weight & DIM Logic (Preserved 100%)
+        function computeShippingDetails(weightOz, length, width, height) {
+            const l = Math.ceil(length || 0);
+            const w = Math.ceil(width || 0);
+            const h = Math.ceil(height || 0);
+            const cubicInches = l * w * h;
+
+            let isDim = false;
+            let dimWeightLbs = 0;
+            let billableWeightOz = weightOz;
+
+            if (cubicInches > 1728) {
+                isDim = true;
+                dimWeightLbs = Math.ceil(cubicInches / 139);
+                const dimWeightOz = dimWeightLbs * 16;
+                if (dimWeightOz > weightOz) {
+                    billableWeightOz = dimWeightOz;
+                }
+            }
+
+            let cost = 4.50;
+            if (billableWeightOz <= 4) cost = 4.50;
+            else if (billableWeightOz <= 8) cost = 4.90;
+            else if (billableWeightOz <= 12) cost = 5.50;
+            else if (billableWeightOz <= 15.9) cost = 6.20;
+            else if (billableWeightOz <= 32) cost = 8.50;
+            else if (billableWeightOz <= 48) cost = 10.50;
+            else if (billableWeightOz <= 64) cost = 12.50;
+            else if (billableWeightOz <= 80) cost = 14.50;
+            else if (billableWeightOz <= 112) cost = 17.50;
+            else if (billableWeightOz <= 160) cost = 21.00;
+            else cost = 25.00 + (Math.ceil((billableWeightOz - 160) / 16) * 1.50);
+
+            if (cubicInches > 3456) {
+                cost += 15.00;
+            }
+
+            return {
+                cubicInches,
+                isDim,
+                dimWeightLbs,
+                actualWeightOz: weightOz,
+                billableWeightOz,
+                shippingCost: cost
+            };
+        }
+
+        // Slicer File Parsing & 3D Spatial Packaging via Backend API
+        function handleDragOver(e) { e.preventDefault(); document.getElementById('dropzone').classList.add('border-indigo-400'); }
+        function handleDragLeave(e) { e.preventDefault(); document.getElementById('dropzone').classList.remove('border-indigo-400'); }
+        function handleFileDrop(e) {
+            e.preventDefault();
+            document.getElementById('dropzone').classList.remove('border-indigo-400');
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleSlicerFile(e.dataTransfer.files[0]);
+            }
+        }
+
+        async function handleSlicerFile(file) {
+            if (!file) return;
+            const currentItemName = document.getElementById('itemName').value || '';
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('item_name', currentItemName);
+
+            try {
+                const res = await fetch('/api/slicer/parse', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!res.ok) throw new Error('Backend slicer parse error');
+                const data = await res.json();
+                applySlicerAnalysisToUI(data);
+            } catch (err) {
+                console.error("Falling back to browser slicer parser:", err);
+                const text = await file.text();
+                parseGcodeTextFallback(text, file.name);
+            }
+        }
+
+        function applySlicerAnalysisToUI(data) {
+            if (data.filament_grams > 0) {
+                document.getElementById('filamentGrams').value = data.filament_grams;
+            }
+            if (data.print_hours > 0) {
+                document.getElementById('printHours').value = data.print_hours;
+            }
+            if (data.estimated_package_oz > 0) {
+                document.getElementById('packageWeight').value = data.estimated_package_oz;
+            }
+            if (data.bed_temp_c) {
+                currentBedTempC = data.bed_temp_c;
+                document.getElementById('bedTempBadge').innerText = `Bed: ${data.bed_temp_c}°C`;
+            }
+            if (data.suggested_title && document.getElementById('itemName').value === 'Gothic Skull Dice Tower') {
+                document.getElementById('itemName').value = data.suggested_title;
+            }
+            if (data.saved_gcode && data.saved_gcode.staged_filename) {
+                currentStagedGcodeFilename = data.saved_gcode.staged_filename;
+            }
+
+            if (data.bbox_in) {
+                document.getElementById('objX').value = data.bbox_in.x;
+                document.getElementById('objY').value = data.bbox_in.y;
+                document.getElementById('objZ').value = data.bbox_in.z;
+            }
+
+            if (data.packaging_fit) {
+                applySpatialFitResult(data.packaging_fit, data);
+            }
+
+            calculateAll();
+        }
+
+        function applySpatialFitResult(fit, slicerMeta = null) {
+            const banner = document.getElementById('spatialFitBanner');
+            banner.classList.remove('hidden');
+
+            const selBox = fit.selected_box;
+            if (selBox) {
+                document.getElementById('boxLength').value = selBox.l;
+                document.getElementById('boxWidth').value = selBox.w;
+                document.getElementById('boxHeight').value = selBox.h;
+
+                const selectEl = document.getElementById('boxPresetSelect');
+                if ([...selectEl.options].some(o => o.value === selBox.id)) {
+                    selectEl.value = selBox.id;
+                } else {
+                    selectEl.value = 'custom';
+                }
+            }
+
+            const obj = fit.object_dims_in;
+            const pad = fit.padded_dims_in;
+
+            if (fit.exceeds_all_boxes) {
+                banner.className = "rounded-xl p-3 border text-xs space-y-1.5 bg-rose-950/40 border-rose-800 text-rose-200";
+                banner.innerHTML = `
+                    <div class="font-bold text-rose-400 flex items-center justify-between">
+                        <span>⚠️ EXCEEDS ALL STOCK BOXES</span>
+                        <span class="font-mono text-[10px]">+2.0" Clearance Applied</span>
+                    </div>
+                    <div class="text-[11px] text-slate-300">
+                        Part: <span class="font-mono">${obj.x}" × ${obj.y}" × ${obj.z}"</span> → Padded: <span class="font-mono font-bold text-rose-300">${pad.x}" × ${pad.y}" × ${pad.z}"</span>
+                    </div>
+                    <div class="text-[10px] text-rose-300">No active UPS or USPS stock box fits across any of the 6 orientations. Custom corrugated box set (${selBox.l}" × ${selBox.w}" × ${selBox.h}").</div>
+                `;
+            } else {
+                banner.className = "rounded-xl p-3 border text-xs space-y-1.5 bg-emerald-950/30 border-emerald-800/70 text-emerald-100";
+                banner.innerHTML = `
+                    <div class="font-bold text-emerald-400 flex items-center justify-between">
+                        <span>✅ 3D Rotational Fit: ${selBox.name}</span>
+                        <span class="font-mono text-[10px] bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">${fit.fill_efficiency_pct}% Vol Fill</span>
+                    </div>
+                    <div class="text-[11px] text-slate-300">
+                        Part: <span class="font-mono">${obj.x}" × ${obj.y}" × ${obj.z}"</span> + 2" Pad → <span class="font-mono text-emerald-300">${pad.x}" × ${pad.y}" × ${pad.z}"</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 flex justify-between">
+                        <span>Orientation: <strong class="text-slate-200">${fit.selected_orientation.label}</strong></span>
+                        ${slicerMeta ? `<span>Bed: ${slicerMeta.bed_temp_c}°C • ${slicerMeta.filament_grams}g • ${slicerMeta.print_hours}h</span>` : ''}
+                    </div>
+                `;
+            }
+            calculateAll();
+        }
+
+        async function testManual3DFit() {
+            const x = parseFloat(document.getElementById('objX').value) || 0;
+            const y = parseFloat(document.getElementById('objY').value) || 0;
+            const z = parseFloat(document.getElementById('objZ').value) || 0;
+            if (x <= 0 || y <= 0 || z <= 0) {
+                alert("Enter positive X, Y, Z object dimensions (in inches) to test 3D rotational box fit.");
+                return;
+            }
+            try {
+                const res = await fetch('/api/packaging/solve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ x_in: x, y_in: y, z_in: z, padding_in: 2.0 })
+                });
+                const fit = await res.json();
+                applySpatialFitResult(fit);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function parseGcodeTextFallback(text, originalFilename) {
+            let filamentGrams = 0;
+            let printHours = 0;
+            const filamentMatch = text.match(/total filament used \[g\]\s*=\s*([\d\.]+)/i) || 
+                                  text.match(/filament used \[g\]\s*=\s*([\d\.]+)/i) ||
+                                  text.match(/;\s*filament used\s*=\s*([\d\.]+)g/i);
+            if (filamentMatch) filamentGrams = Math.round(parseFloat(filamentMatch[1]));
+
+            const timeMatch = text.match(/model printing time:\s*([0-9dhms\s]+);/i) || 
+                              text.match(/estimated printing time \(normal mode\)\s*=\s*([0-9dhms\s]+)/i) ||
+                              text.match(/;\s*total estimated time:\s*([0-9dhms\s]+)/i);
+            if (timeMatch) {
+                const rawTime = timeMatch[1];
+                let totalH = 0;
+                const d = rawTime.match(/(\d+)d/);
+                const h = rawTime.match(/(\d+)h/);
+                const m = rawTime.match(/(\d+)m/);
+                if (d) totalH += parseInt(d[1]) * 24;
+                if (h) totalH += parseInt(h[1]);
+                if (m) totalH += parseInt(m[1]) / 60;
+                printHours = parseFloat(totalH.toFixed(2));
+            }
+            if (filamentGrams > 0) document.getElementById('filamentGrams').value = filamentGrams;
+            if (printHours > 0) document.getElementById('printHours').value = printHours;
+            if (filamentGrams > 0) {
+                document.getElementById('packageWeight').value = Math.ceil((filamentGrams * 0.035274) + 4);
+            }
+            calculateAll();
+        }
+
+        function applyBoxPreset(val) {
+            if (BOX_PRESETS[val]) {
+                document.getElementById('boxLength').value = BOX_PRESETS[val].l;
+                document.getElementById('boxWidth').value = BOX_PRESETS[val].w;
+                document.getElementById('boxHeight').value = BOX_PRESETS[val].h;
+                calculateAll();
+            }
+        }
+
+        async function initApp() {
+            try {
+                const res = await fetch('/api/state');
+                if (res.ok) {
+                    const data = await res.json();
+                    catalog = data.catalog || [];
+                    uploadedMonths = data.uploadedMonths || uploadedMonths;
+                    if (data.settings) {
+                        appSettings = data.settings;
+                    }
+                }
+            } catch (err) {
+                console.warn("Backend unavailable, using in-memory defaults:", err);
+            }
+
+            syncSettingsToUI();
+            calculateAll();
+            renderCatalog();
+            renderPatreonCards();
+            renderPlatformTotalFees();
+            renderMonthsGrid();
+        }
+
+        function syncSettingsToUI() {
+            document.getElementById('headerStorageRoot').innerText = appSettings.storage_root || 'Local Default';
+            document.getElementById('autoDownloadToggle').checked = !!appSettings.auto_download_json;
+
+            const slip = appSettings.slip_config || {};
+            document.getElementById('slipStudioName').innerText = slip.studio_name || 'Gilgarips 3D Studio';
+            document.getElementById('slipTagline').innerText = slip.tagline || 'Tabletop Gaming Gear & Gothic Home Decor';
+            document.getElementById('slipCouponCode').innerText = slip.coupon_code || 'DIRECT15';
+            document.getElementById('slipDiscountPct').innerText = slip.discount_pct || 15;
+            document.getElementById('slipStoreUrl').innerText = slip.store_url || 'Mayhem Marketplace / Gilgarips3D';
+
+            // Populate Design Source dropdown dynamically from configured Patreons
+            const patreonSelect = document.getElementById('patreonSource');
+            if (patreonSelect) {
+                const currentVal = patreonSelect.value;
+                const activePatreons = getPatreonsList().filter(p => p.active !== false);
+                patreonSelect.innerHTML = activePatreons.map(p => {
+                    const costLabel = p.name === 'None'
+                        ? 'None / Reselling'
+                        : (p.subCost > 0 ? `${p.name} ($${Number(p.subCost).toFixed(0)}/mo)` : `${p.name} (In-House - $0)`);
+                    return `<option value="${p.name}">${costLabel}</option>`;
+                }).join('');
+                if ([...patreonSelect.options].some(o => o.value === currentVal)) {
+                    patreonSelect.value = currentVal;
+                }
+            }
+        }
+
+        async function toggleAutoDownload(checked) {
+            appSettings.auto_download_json = checked;
+            try {
+                await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(appSettings)
+                });
+            } catch (e) {}
+        }
+
+        function renderMonthsGrid() {
+            const container = document.getElementById('monthsGrid');
+            container.innerHTML = '';
+            
+            MONTH_NAMES.forEach(m => {
+                const isUploaded = uploadedMonths[m];
+                container.innerHTML += `
+                    <button onclick="toggleMonth('${m}')" class="px-2 py-1 rounded text-center font-mono text-[11px] font-bold transition flex items-center justify-center gap-1 ${isUploaded ? 'bg-emerald-950/70 border border-emerald-700/80 text-emerald-300' : 'bg-slate-950 border border-slate-800 text-slate-500 hover:border-slate-700'}">
+                        <span>${isUploaded ? '✓' : '•'}</span> ${m}
+                    </button>
+                `;
+            });
+        }
+
+        function toggleMonth(month) {
+            uploadedMonths[month] = !uploadedMonths[month];
+            persistMonths();
+        }
+
+        function resetUploadedMonths() {
+            if (confirm("Reset uploaded months tracking?")) {
+                MONTH_NAMES.forEach(m => uploadedMonths[m] = false);
+                persistMonths();
+            }
+        }
+
+        async function persistMonths() {
+            renderMonthsGrid();
+            try {
+                await fetch('/api/months', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uploadedMonths })
+                });
+            } catch (e) {
+                console.error("Failed to save months:", e);
+            }
+        }
+
+        function getInputs() {
+            return {
+                name: document.getElementById('itemName').value || 'Unnamed Item',
+                salePrice: parseFloat(document.getElementById('salePrice').value) || 0,
+                itemCost: parseFloat(document.getElementById('itemCost').value) || 0,
+                shippingCharged: parseFloat(document.getElementById('shippingCharged').value) || 0,
+                packageWeight: parseFloat(document.getElementById('packageWeight').value) || 12,
+                boxLength: parseFloat(document.getElementById('boxLength').value) || 0,
+                boxWidth: parseFloat(document.getElementById('boxWidth').value) || 0,
+                boxHeight: parseFloat(document.getElementById('boxHeight').value) || 0,
+                objX: parseFloat(document.getElementById('objX').value) || 0,
+                objY: parseFloat(document.getElementById('objY').value) || 0,
+                objZ: parseFloat(document.getElementById('objZ').value) || 0,
+                bedTempC: currentBedTempC,
+                freeShippingOver35: document.getElementById('freeShippingOver35').checked,
+                filamentGrams: parseFloat(document.getElementById('filamentGrams').value) || 0,
+                filamentCostPerKg: parseFloat(document.getElementById('filamentCostPerKg').value) || 0,
+                printHours: parseFloat(document.getElementById('printHours').value) || 0,
+                powerRate: parseFloat(document.getElementById('powerRate').value) || 0.21,
+                patreonSource: document.getElementById('patreonSource').value,
+                suppliesCost: parseFloat(document.getElementById('suppliesCost').value) || 0,
+                stockOnHand: parseInt(document.getElementById('stockOnHand').value) || 0,
+                materialType: document.getElementById('materialType').value
+            };
+        }
+
+        function populateForm(item) {
+            document.getElementById('itemName').value = item.name;
+            document.getElementById('salePrice').value = item.salePrice;
+            document.getElementById('itemCost').value = item.itemCost;
+            document.getElementById('shippingCharged').value = item.shippingCharged;
+            document.getElementById('packageWeight').value = item.packageWeight;
+            document.getElementById('boxLength').value = item.boxLength || 0;
+            document.getElementById('boxWidth').value = item.boxWidth || 0;
+            document.getElementById('boxHeight').value = item.boxHeight || 0;
+            document.getElementById('objX').value = item.objX || '';
+            document.getElementById('objY').value = item.objY || '';
+            document.getElementById('objZ').value = item.objZ || '';
+            currentBedTempC = item.bedTempC || 60;
+            document.getElementById('bedTempBadge').innerText = `Bed: ${currentBedTempC}°C`;
+            document.getElementById('freeShippingOver35').checked = item.freeShippingOver35;
+            document.getElementById('filamentGrams').value = item.filamentGrams;
+            document.getElementById('filamentCostPerKg').value = item.filamentCostPerKg;
+            document.getElementById('printHours').value = item.printHours;
+            document.getElementById('powerRate').value = item.powerRate;
+            document.getElementById('patreonSource').value = item.patreonSource;
+            document.getElementById('suppliesCost').value = item.suppliesCost;
+            document.getElementById('stockOnHand').value = item.stockOnHand || 0;
+            document.getElementById('materialType').value = item.materialType || "PLA Pro / Tough PLA";
+
+            renderFormPhotos(item.photos || []);
+            calculateAll();
+        }
+
+        function renderFormPhotos(photos) {
+            const gallery = document.getElementById('formPhotoGallery');
+            if (!photos || photos.length === 0) {
+                gallery.innerHTML = '';
+                return;
+            }
+            gallery.innerHTML = photos.map(url => {
+                const name = url.split('/').pop();
+                return `
+                    <a href="${url}" target="_blank" title="${name}" class="group relative block w-14 h-14 rounded-lg overflow-hidden border border-slate-700 bg-slate-950">
+                        <img src="${url}?t=${Date.now()}" alt="${name}" class="w-full h-full object-cover">
+                        <span class="absolute bottom-0 inset-x-0 bg-slate-950/85 text-[8px] font-mono text-center text-slate-300 truncate px-0.5">${name}</span>
+                    </a>
+                `;
+            }).join('');
+        }
+
+        function computeChannelFinancials(ch, item, totalRevenue, marginBase, directItemCost, totalDirectCost) {
+            let fees = 0;
+            let net = 0;
+            let margin = 0;
+
+            if (ch.fee_model === 'subscription' || ch.key === 'Mayhem') {
+                fees = (ch.listing_fee || 0) + (totalRevenue * ((ch.commission_pct || 0) / 100)) + (totalRevenue * ((ch.processing_pct || 0) / 100)) + (ch.fixed_fee || 0);
+                net = totalRevenue - fees - totalDirectCost;
+                margin = marginBase > 0 ? (net / marginBase) * 100 : 0;
+            } else if (ch.fee_model === 'poshmark' || ch.key === 'Poshmark') {
+                const flatUnder = ch.under_15_flat !== undefined ? ch.under_15_flat : 2.95;
+                const commPct = (ch.commission_pct !== undefined ? ch.commission_pct : 20.0) / 100;
+                fees = item.salePrice > 15 ? (item.salePrice * commPct) : flatUnder;
+                net = item.salePrice - fees - directItemCost;
+                margin = item.salePrice > 0 ? (net / item.salePrice) * 100 : 0;
+            } else {
+                const listing = ch.listing_fee || 0;
+                const comm = totalRevenue * ((ch.commission_pct || 0) / 100);
+                const proc = totalRevenue * ((ch.processing_pct || 0) / 100);
+                const fixed = ch.fixed_fee || 0;
+                fees = listing + comm + proc + fixed;
+                net = totalRevenue - fees - totalDirectCost;
+                margin = marginBase > 0 ? (net / marginBase) * 100 : 0;
+            }
+
+            return { net, margin, fees };
+        }
+
+        function computeItemFinancials(item) {
+            const filamentCost = (item.filamentGrams / 1000) * item.filamentCostPerKg;
+            const electricityCost = item.printHours * 0.15 * item.powerRate;
+            const directItemCost = item.itemCost + filamentCost + electricityCost + item.suppliesCost;
+
+            const ship = computeShippingDetails(item.packageWeight, item.boxLength, item.boxWidth, item.boxHeight);
+            const freeShippingActive = item.freeShippingOver35 && item.salePrice >= 35;
+            
+            const shippingOutflow = freeShippingActive ? ship.shippingCost : Math.max(0, ship.shippingCost - item.shippingCharged);
+            const totalDirectCost = directItemCost + shippingOutflow;
+
+            const totalRevenue = item.salePrice + (freeShippingActive ? 0 : item.shippingCharged);
+            const marginBase = totalRevenue > 0 ? totalRevenue : item.salePrice;
+
+            const byChannel = {};
+            (appSettings.channels || []).forEach(ch => {
+                byChannel[ch.key] = computeChannelFinancials(ch, item, totalRevenue, marginBase, directItemCost, totalDirectCost);
+            });
+
+            // Guarantee keys for legacy accessors
+            const etsy = byChannel['Etsy'] || { net: 0, margin: 0, fees: 0 };
+            const ebay = byChannel['eBay'] || { net: 0, margin: 0, fees: 0 };
+            const poshmark = byChannel['Poshmark'] || { net: 0, margin: 0, fees: 0 };
+            const mayhem = byChannel['Mayhem'] || { net: totalRevenue - totalDirectCost, margin: marginBase > 0 ? ((totalRevenue - totalDirectCost) / marginBase) * 100 : 0, fees: 0 };
+            const depop = byChannel['Depop'] || { net: 0, margin: 0, fees: 0 };
+            const tiktok = byChannel['TikTok'] || { net: 0, margin: 0, fees: 0 };
+
+            const spoolYield = item.filamentGrams > 0 ? Math.floor(1000 / item.filamentGrams) : 0;
+            const machineRate = item.printHours > 0 ? (etsy.net / item.printHours) : 0;
+
+            return {
+                ship,
+                directItemCost,
+                directCost: totalDirectCost,
+                totalRevenue,
+                freeShippingActive,
+                shippingOutflow,
+                spoolYield,
+                machineRate,
+                byChannel,
+                etsy,
+                ebay,
+                poshmark,
+                mayhem,
+                depop,
+                tiktok
+            };
+        }
+
+        function calculateAll() {
+            const inputs = getInputs();
+            document.getElementById('activeItemDisplay').innerText = inputs.name;
+            
+            const fin = computeItemFinancials(inputs);
+            document.getElementById('summaryTotalCost').innerText = `$${fin.directCost.toFixed(2)}`;
+            document.getElementById('summaryMachineRate').innerText = `$${Math.max(0, fin.machineRate).toFixed(2)}/hr`;
+            document.getElementById('farmYieldBadge').innerText = `Spool Yield: ~${fin.spoolYield} units/kg`;
+
+            const badge = document.getElementById('dimStatusBadge');
+            if (fin.ship.isDim) {
+                badge.innerText = `DIM: ${fin.ship.dimWeightLbs} lbs (${fin.ship.cubicInches} in³)`;
+                badge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950/60 text-rose-400 border border-rose-800";
+            } else {
+                badge.innerText = `${(inputs.packageWeight/16).toFixed(1)} lbs (${fin.ship.cubicInches} in³)`;
+                badge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
+            }
+
+            const alertCard = document.getElementById('dimAlertCard');
+            if (fin.freeShippingActive) {
+                const isHeavyDrag = fin.etsy.margin < 50;
+                alertCard.className = `p-5 rounded-2xl border shadow-xl transition space-y-3 ${isHeavyDrag ? 'bg-rose-950/20 border-rose-900/60' : 'bg-indigo-950/20 border-indigo-900/50'}`;
+                alertCard.innerHTML = `
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg">${isHeavyDrag ? '🚨' : '⚡'}</span>
+                            <h3 class="text-sm font-bold ${isHeavyDrag ? 'text-rose-400' : 'text-indigo-300'}">
+                                Free Shipping Trigger Active ($35+ threshold)
+                            </h3>
+                        </div>
+                        <span class="text-xs font-mono px-2 py-0.5 rounded ${fin.ship.isDim ? 'bg-rose-900/40 text-rose-300 border border-rose-700' : 'bg-slate-800 text-slate-300'}">
+                            ${fin.ship.isDim ? `DIM Weight: ${fin.ship.dimWeightLbs} lbs` : `Billable Weight: ${(fin.ship.billableWeightOz/16).toFixed(1)} lbs`}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs pt-1">
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                            <div class="text-slate-400 text-[11px]">USPS Label Outflow:</div>
+                            <div class="text-base font-mono font-bold text-white mt-0.5">$${fin.ship.shippingCost.toFixed(2)}</div>
+                            <div class="text-[10px] text-slate-500">${fin.ship.isDim ? 'Inflated by box volume' : 'Weight-based tier'}</div>
+                        </div>
+
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                            <div class="text-slate-400 text-[11px]">Etsy Net Margin:</div>
+                            <div class="text-base font-mono font-bold ${fin.etsy.margin >= 50 ? 'text-emerald-400' : 'text-rose-400'} mt-0.5">${fin.etsy.margin.toFixed(1)}%</div>
+                            <div class="text-[10px] text-slate-500">$${fin.etsy.net.toFixed(2)} net profit</div>
+                        </div>
+
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                            <div class="text-slate-400 text-[11px]">Mayhem Net Profit:</div>
+                            <div class="text-base font-mono font-bold text-emerald-400 mt-0.5">$${fin.mayhem.net.toFixed(2)}</div>
+                            <div class="text-[10px] text-slate-500">+$${(fin.mayhem.net - fin.etsy.net).toFixed(2)} vs Etsy</div>
+                        </div>
+
+                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                            <div class="text-slate-400 text-[11px]">Machine Yield:</div>
+                            <div class="text-base font-mono font-bold text-indigo-300 mt-0.5">$${fin.machineRate.toFixed(2)}/hr</div>
+                            <div class="text-[10px] text-slate-500">${inputs.printHours}h plate occupancy</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                alertCard.className = "bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl flex justify-between items-center";
+                alertCard.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-indigo-400">📦</span>
+                        <span class="text-xs text-slate-300">Customer Charged $${inputs.shippingCharged.toFixed(2)} Shipping (Sale < $35).</span>
+                    </div>
+                    <span class="text-xs font-mono text-slate-400">Label Cost: $${fin.ship.shippingCost.toFixed(2)} (${(fin.ship.billableWeightOz/16).toFixed(1)} lbs)</span>
+                `;
+            }
+
+            const activeChannels = getActiveChannels();
+            const grid = document.getElementById('platformResultsGrid');
+            grid.innerHTML = activeChannels.map(ch => {
+                const cFin = fin.byChannel[ch.key] || { net: 0, margin: 0, fees: 0 };
+                const isMayhem = ch.key === 'Mayhem';
+                const labelColor = isMayhem ? 'text-emerald-400' : (ch.color === 'rose' ? 'text-rose-400' : (ch.color === 'cyan' ? 'text-cyan-400' : 'text-indigo-400'));
+                return `
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold ${labelColor} text-xs">${ch.key}</span>
+                            <span class="text-[10px] text-slate-500">${isMayhem && cFin.fees === 0 ? '$0 cut' : `-$${cFin.fees.toFixed(2)}`}</span>
+                        </div>
+                        <div class="text-lg font-bold ${isMayhem ? 'text-emerald-400' : 'text-white'}">$${cFin.net.toFixed(2)}</div>
+                        <div class="text-[10px] text-slate-400">Margin: <span class="${cFin.margin >= 50 ? 'text-emerald-400 font-bold' : 'text-amber-400'}">${cFin.margin.toFixed(0)}%</span></div>
+                    </div>
+                `;
+            }).join('');
+
+            const costFactor = fin.directCost + 0.45;
+            const target50 = costFactor / (1 - 0.50 - 0.095);
+            const target80 = costFactor / (1 - 0.80 - 0.095);
+
+            document.getElementById('targetPricingGrid').innerHTML = `
+                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                    <div class="text-slate-400 text-[11px]">50% Net Margin Target</div>
+                    <div class="text-sm font-bold text-emerald-400 mt-0.5">~$${Math.max(0, target50).toFixed(2)}</div>
+                </div>
+                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
+                    <div class="text-slate-400 text-[11px]">80% Net Margin Target</div>
+                    <div class="text-sm font-bold text-indigo-400 mt-0.5">~$${Math.max(0, target80).toFixed(2)}</div>
+                </div>
+                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex flex-col justify-center">
+                    <div class="text-slate-400 text-[11px]">Mayhem Direct Spread</div>
+                    <div class="text-xs font-semibold text-emerald-300 mt-0.5">+$${(fin.mayhem.net - fin.etsy.net).toFixed(2)} / unit saved</div>
+                </div>
+            `;
+        }
+
+        function renderPlatformTotalFees() {
+            const activeChannels = getActiveChannels();
+            const feeTotals = {};
+            activeChannels.forEach(ch => {
+                feeTotals[ch.key] = (ch.monthly_sub || 0) * 12;
+            });
+
+            catalog.forEach(item => {
+                const fin = computeItemFinancials(item);
+                const sales = item.ytdSales || {};
+                activeChannels.forEach(ch => {
+                    const units = sales[ch.key] || 0;
+                    const chFin = fin.byChannel[ch.key] || { fees: 0 };
+                    feeTotals[ch.key] += units * chFin.fees;
+                });
+            });
+
+            let grandTotal = 0;
+            activeChannels.forEach(ch => {
+                grandTotal += feeTotals[ch.key] || 0;
+            });
+
+            document.getElementById('grandTotalFees').innerText = `$${grandTotal.toFixed(2)}`;
+
+            const container = document.getElementById('platformTotalFeesGrid');
+            container.innerHTML = activeChannels.map(ch => {
+                const isMayhem = ch.key === 'Mayhem';
+                const total = feeTotals[ch.key] || 0;
+                const subText = isMayhem
+                    ? `$${(ch.monthly_sub || 10).toFixed(2)}/mo flat`
+                    : (ch.fee_model === 'poshmark' ? `${ch.commission_pct}% Flat Cut` : `${ch.commission_pct}% + $${(ch.fixed_fee || 0).toFixed(2)}`);
+                return `
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800">
+                        <div class="text-[11px] font-semibold ${isMayhem ? 'text-emerald-400' : 'text-indigo-300'}">${ch.key} ${isMayhem ? 'Sub' : 'Fees'}</div>
+                        <div class="text-base font-bold font-mono ${isMayhem ? 'text-white' : 'text-rose-400'} mt-0.5">$${total.toFixed(2)}</div>
+                        <div class="text-[10px] text-slate-500 mt-0.5">${subText}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function loadItemIntoForm(index) {
+            editingIndex = index;
+            currentStagedGcodeFilename = null;
+            const item = catalog[index];
+            populateForm(item);
+            document.getElementById('formHeader').innerText = 'Editing: ' + item.name;
+            document.getElementById('saveBtn').innerText = 'Update Item in Catalog & Disk';
+            document.getElementById('cancelEditBtn').classList.remove('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function resetForm() {
+            editingIndex = -1;
+            currentStagedGcodeFilename = null;
+            document.getElementById('formHeader').innerText = 'Item & Print Estimator';
+            document.getElementById('saveBtn').innerText = 'Save Item to Catalog & Scaffold Disk';
+            document.getElementById('cancelEditBtn').classList.add('hidden');
+            document.getElementById('formPhotoGallery').innerHTML = '';
+        }
+
+        async function saveCurrentItem() {
+            const item = getInputs();
+            const targetIndex = (editingIndex >= 0 && editingIndex < catalog.length) ? editingIndex : -1;
+
+            try {
+                const res = await fetch('/api/items', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        item,
+                        index: targetIndex,
+                        staged_gcode_filename: currentStagedGcodeFilename
+                    })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    catalog = data.catalog;
+                    resetForm();
+                    renderCatalog();
+                    renderPatreonCards();
+                    renderPlatformTotalFees();
+                    if (document.getElementById('autoDownloadToggle')?.checked) {
+                        exportData(false);
+                    }
+                    return;
+                }
+            } catch (err) {
+                console.error("API save error:", err);
+            }
+
+            // Fallback if offline
+            if (targetIndex >= 0) {
+                item.ytdSales = catalog[targetIndex].ytdSales || {};
+                catalog[targetIndex] = item;
+                resetForm();
+            } else {
+                item.ytdSales = { Mayhem: 0, Etsy: 0, eBay: 0, Poshmark: 0, Depop: 0, TikTok: 0 };
+                catalog.push(item);
+            }
+            persistCatalog();
+        }
+
+        async function persistCatalog() {
+            renderCatalog();
+            renderPatreonCards();
+            renderPlatformTotalFees();
+
+            try {
+                const res = await fetch('/api/catalog', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ catalog, uploadedMonths })
+                });
+                if (res.ok) {
+                    const saved = await res.json();
+                    catalog = saved.catalog || catalog;
+                    renderCatalog();
+                }
+            } catch (err) {
+                console.error("Failed to sync catalog to backend:", err);
+            }
+
+            if (document.getElementById('autoDownloadToggle')?.checked) {
+                exportData(false);
+            }
+        }
+
+        async function deleteItem(event, index) {
+            event.stopPropagation();
+            if (confirm(`Delete "${catalog[index].name}" from catalog index?`)) {
+                if (editingIndex === index) resetForm();
+                try {
+                    const res = await fetch(`/api/items/${index}`, { method: 'DELETE' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        catalog = data.catalog;
+                        renderCatalog();
+                        renderPatreonCards();
+                        renderPlatformTotalFees();
+                        return;
+                    }
+                } catch (e) {}
+                catalog.splice(index, 1);
+                persistCatalog();
+            }
+        }
+
+        function updateInlineStock(event, index, val) {
+            event.stopPropagation();
+            catalog[index].stockOnHand = Math.max(0, parseInt(val) || 0);
+            persistCatalog();
+        }
+
+        function updateInlineSales(event, index, platform, val) {
+            event.stopPropagation();
+            if (!catalog[index].ytdSales) {
+                catalog[index].ytdSales = { Mayhem: 0, Etsy: 0, eBay: 0, Poshmark: 0, Depop: 0, TikTok: 0 };
+            }
+            catalog[index].ytdSales[platform] = Math.max(0, parseInt(val) || 0);
+            persistCatalog();
+        }
+
+        // Photo Ingestion Handlers (Form + Catalog Row Drag & Drop)
+        function handleFormPhotoDrop(event) {
+            event.preventDefault();
+            document.getElementById('photoDropzone').classList.remove('border-emerald-400');
+            if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+                uploadPhotosForCurrentForm(event.dataTransfer.files);
+            }
+        }
+
+        async function uploadPhotosForCurrentForm(fileList) {
+            if (!fileList || fileList.length === 0) return;
+            const itemName = document.getElementById('itemName').value || 'unnamed-item';
+            const slug = (editingIndex >= 0 && catalog[editingIndex]?.slug) ? catalog[editingIndex].slug : slugify(itemName);
+            const data = await uploadPhotosForSlug(slug, fileList);
+            if (data && data.photos) {
+                renderFormPhotos(data.photos);
+            }
+        }
+
+        function triggerRowPhotoUpload(event, slug) {
+            event.stopPropagation();
+            pendingPhotoRowSlug = slug;
+            document.getElementById('rowPhotoInput').value = '';
+            document.getElementById('rowPhotoInput').click();
+        }
+
+        async function handleRowPhotoSelected(event) {
+            if (!pendingPhotoRowSlug || !event.target.files?.length) return;
+            await uploadPhotosForSlug(pendingPhotoRowSlug, event.target.files);
+            pendingPhotoRowSlug = null;
+        }
+
+        async function handleRowPhotoDrop(event, slug) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.classList.remove('ring-2', 'ring-emerald-500');
+            if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+                await uploadPhotosForSlug(slug, event.dataTransfer.files);
+            }
+        }
+
+        async function uploadPhotosForSlug(slug, fileList) {
+            const formData = new FormData();
+            Array.from(fileList).forEach(f => formData.append('files', f));
+            try {
+                const res = await fetch(`/api/products/${encodeURIComponent(slug)}/photos`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!res.ok) throw new Error('Photo upload failed');
+                const data = await res.json();
+                if (data.catalog) {
+                    catalog = data.catalog;
+                    renderCatalog();
+                }
+                return data;
+            } catch (err) {
+                alert("Failed to upload photos: " + err.message);
+                return null;
+            }
+        }
+
+        async function openStorageFolder(slug = null, event = null) {
+            if (event) event.stopPropagation();
+            try {
+                await fetch('/api/admin/open-folder', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slug })
+                });
+            } catch (e) {}
+        }
+
+        function renderCatalog() {
+            const tbody = document.getElementById('catalogTableBody');
+            const searchInput = (document.getElementById('catalogSearch')?.value || '').trim().toLowerCase();
+            const shouldFilter = searchInput.length >= 3;
+
+            const activeChannels = getActiveChannels();
+            const ytdHeader = document.getElementById('ytdHeaderCell');
+            if (ytdHeader) {
+                const shorts = activeChannels.map(c => c.short || c.key.slice(0, 2)).join(' / ');
+                ytdHeader.innerText = `YTD Units (${shorts || 'None'})`;
+            }
+            
+            const visibleItems = catalog.map((item, index) => ({ item, index })).filter(({ item }) => {
+                if (!shouldFilter) return true;
+                const matchName = (item.name || '').toLowerCase().includes(searchInput);
+                const matchSource = (item.patreonSource || '').toLowerCase().includes(searchInput);
+                return matchName || matchSource;
+            });
+
+            document.getElementById('catalogCount').innerText = `${visibleItems.length} of ${catalog.length} items`;
+            tbody.innerHTML = '';
+
+            if (visibleItems.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-500">${catalog.length === 0 ? 'No items saved or imported yet. Drop a .gcode/.3mf or click Save Item to scaffold your catalog!' : 'No matching items found.'}</td></tr>`;
+                return;
+            }
+
+            visibleItems.forEach(({ item, index }) => {
+                if (!item.ytdSales) item.ytdSales = { Mayhem: 0, Etsy: 0, eBay: 0, Poshmark: 0, Depop: 0, TikTok: 0 };
+
+                const fin = computeItemFinancials(item);
+                const isSelected = editingIndex === index;
+                const slug = item.slug || slugify(item.name);
+
+                let totalUnits = 0;
+                let totalSalesDollars = 0;
+                let totalProfitDollars = 0;
+
+                activeChannels.forEach(ch => {
+                    const u = item.ytdSales[ch.key] || 0;
+                    const chFin = fin.byChannel[ch.key] || { net: 0 };
+                    const unitRev = (ch.fee_model === 'poshmark' || ch.key === 'Poshmark') ? item.salePrice : fin.totalRevenue;
+                    totalUnits += u;
+                    totalSalesDollars += u * unitRev;
+                    totalProfitDollars += u * chFin.net;
+                });
+
+                const stock = item.stockOnHand || 0;
+                const isStockLow = stock === 0 && totalUnits > 0;
+                const thumbUrl = item.thumbnail ? `${item.thumbnail}?t=${Date.now()}` : null;
+                const gcodeCount = (item.gcodeFiles || []).length;
+                const photoCount = (item.photos || []).length;
+
+                const salesInputsHtml = activeChannels.map(ch => {
+                    const val = item.ytdSales[ch.key] || 0;
+                    const textColor = ch.key === 'Mayhem' ? 'text-emerald-300' : (ch.color === 'rose' ? 'text-rose-300' : (ch.color === 'cyan' ? 'text-cyan-300' : 'text-indigo-300'));
+                    return `<input type="number" title="${ch.name}" min="0" value="${val}" onchange="updateInlineSales(event, ${index}, '${ch.key}', this.value)" class="w-9 bg-slate-950 border border-slate-800 rounded px-1 py-0.5 text-center ${textColor} font-mono">`;
+                }).join('');
+
+                tbody.innerHTML += `
+                    <tr onclick="loadItemIntoForm(${index})"
+                        ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-emerald-500')"
+                        ondragleave="this.classList.remove('ring-2', 'ring-emerald-500')"
+                        ondrop="handleRowPhotoDrop(event, '${slug}')"
+                        title="Click to edit • Drag & drop photos onto row to auto-save as 01_hero.jpg, 02_detail.jpg"
+                        class="cursor-pointer transition ${isSelected ? 'bg-indigo-950/40 border-l-2 border-indigo-500' : 'hover:bg-slate-900/60'}">
+                        <td class="p-3">
+                            <div class="flex items-center gap-2.5">
+                                ${thumbUrl
+                                    ? `<img src="${thumbUrl}" alt="${item.name}" class="w-10 h-10 rounded-lg object-cover border border-slate-700 shrink-0">`
+                                    : `<div onclick="triggerRowPhotoUpload(event, '${slug}')" class="w-10 h-10 rounded-lg bg-slate-950 border border-dashed border-slate-700 hover:border-emerald-400 flex items-center justify-center text-slate-500 hover:text-emerald-300 text-xs shrink-0" title="Drop or click to add 01_hero.jpg">📷</div>`
+                                }
+                                <div>
+                                    <div class="font-medium text-white flex items-center gap-1.5">
+                                        <span>${item.name}</span>
+                                        ${isStockLow ? '<span class="text-[9px] bg-rose-950 text-rose-400 border border-rose-800 px-1 rounded">Out of Stock</span>' : ''}
+                                    </div>
+                                    <div class="text-[10px] text-slate-500 font-mono mt-0.5 flex items-center gap-2">
+                                        <span>${item.filamentGrams}g • ${item.printHours}h • ${item.patreonSource}</span>
+                                        ${gcodeCount > 0 ? `<span class="text-indigo-400">🖨️ ${gcodeCount} gcode</span>` : ''}
+                                        ${photoCount > 0 ? `<span class="text-emerald-400">🖼️ ${photoCount} img</span>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-3 font-mono text-slate-300 font-semibold">$${fin.directCost.toFixed(2)}</td>
+                        <td class="p-3 font-mono text-white">$${item.salePrice.toFixed(2)}</td>
+                        <td class="p-3" onclick="event.stopPropagation()">
+                            <input type="number" min="0" value="${stock}" onchange="updateInlineStock(event, ${index}, this.value)" class="w-12 bg-slate-950 border ${stock > 0 ? 'border-slate-800 text-emerald-400' : 'border-rose-900 text-rose-400'} rounded px-1.5 py-0.5 text-center font-mono">
+                        </td>
+                        <td class="p-3" onclick="event.stopPropagation()">
+                            <div class="flex items-center gap-1">
+                                ${salesInputsHtml}
+                            </div>
+                        </td>
+                        <td class="p-3 font-mono font-bold text-white text-right">${totalUnits}</td>
+                        <td class="p-3 font-mono font-bold text-indigo-300 text-right">$${totalSalesDollars.toFixed(2)}</td>
+                        <td class="p-3 font-mono font-bold text-emerald-400 text-right">$${totalProfitDollars.toFixed(2)}</td>
+                        <td class="p-3 font-mono font-bold text-slate-300 text-right">$${fin.machineRate.toFixed(2)}/h</td>
+                        <td class="p-3 text-right space-x-1 whitespace-nowrap" onclick="event.stopPropagation()">
+                            <button onclick="triggerRowPhotoUpload(event, '${slug}')" title="Upload Product Photos" class="text-slate-300 hover:text-white text-[11px] bg-slate-800 px-2 py-1 rounded border border-slate-700">📷</button>
+                            <button onclick="openStorageFolder('${slug}', event)" title="Open Product Folder on Disk" class="text-slate-300 hover:text-white text-[11px] bg-slate-800 px-2 py-1 rounded border border-slate-700">📁</button>
+                            <button onclick="openListingModal(${index})" title="Generate AI / Template Copy Pack" class="text-indigo-300 hover:text-white text-[11px] bg-indigo-950/70 px-2 py-1 rounded border border-indigo-800">📋 Pack</button>
+                            <button onclick="openSlipModal(${index})" title="Print Mayhem Insert Slip" class="text-emerald-300 hover:text-white text-[11px] bg-emerald-950/70 px-2 py-1 rounded border border-emerald-800">🖨️ Slip</button>
+                            <button onclick="deleteItem(event, ${index})" class="text-rose-400 hover:text-rose-300 text-[11px] bg-rose-950/40 px-1.5 py-1 rounded border border-rose-900/50">✕</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderPatreonCards() {
+            const container = document.getElementById('patreonStatsGrid');
+            container.innerHTML = '';
+            const activeChannels = getActiveChannels();
+            const patreonsList = getPatreonsList().filter(p => p.active !== false);
+
+            let totalMonthlySubOverhead = 0;
+            patreonsList.forEach(p => {
+                if (p.name !== 'None') {
+                    totalMonthlySubOverhead += (parseFloat(p.subCost) || 0);
+                }
+            });
+
+            const overheadBadge = document.getElementById('totalSubOverheadBadge');
+            if (overheadBadge) {
+                overheadBadge.innerText = `Total Sub Overhead: $${totalMonthlySubOverhead.toFixed(2)}/mo`;
+            }
+
+            patreonsList.forEach(sub => {
+                if (sub.name === "None") return;
+                const name = sub.name;
+                const subCost = parseFloat(sub.subCost) || 0;
+                const colorClass = sub.color || "text-indigo-400";
+                let totalUnits = 0;
+                let totalNetYield = 0;
+
+                catalog.filter(i => i.patreonSource === name).forEach(item => {
+                    const sales = item.ytdSales || {};
+                    const fin = computeItemFinancials(item);
+                    activeChannels.forEach(ch => {
+                        const u = sales[ch.key] || 0;
+                        const chFin = fin.byChannel[ch.key] || { net: 0 };
+                        totalUnits += u;
+                        totalNetYield += u * chFin.net;
+                    });
+                });
+
+                const netProfitAfterSubs = totalNetYield - subCost;
+                container.innerHTML += `
+                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col justify-between">
+                        <div>
+                            <div class="flex justify-between items-start">
+                                <span class="text-xs font-bold ${colorClass}">${name}</span>
+                                <span class="text-[10px] text-slate-500 font-mono">${subCost > 0 ? `$${subCost.toFixed(0)}/mo` : 'No Sub'}</span>
+                            </div>
+                            <div class="mt-2 text-xs text-slate-400">YTD Units: <span class="text-white font-bold font-mono">${totalUnits}</span></div>
+                        </div>
+                        <div class="mt-2 pt-2 border-t border-slate-800/80 flex justify-between items-center text-xs">
+                            <span class="text-slate-400">Net Yield:</span>
+                            <span class="font-mono font-bold ${netProfitAfterSubs >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${netProfitAfterSubs >= 0 ? '+' : ''}$${netProfitAfterSubs.toFixed(2)}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // 1-Click Listing Pack Generator (Static Instant Fallback + Native Gemini AI)
+        function populateListingModalFields(pack) {
+            const title = pack.title || '';
+            const tags = Array.isArray(pack.tags) ? pack.tags : [];
+            const desc = pack.mayhem_description || '';
+            const hook = pack.social_hook || '';
+
+            document.getElementById('modalTitleInput').value = title;
+            document.getElementById('titleCharCount').innerText = `${title.length}/140`;
+            document.getElementById('modalTagsInput').value = tags.join(', ');
+            document.getElementById('tagsCountBadge').innerText = `${tags.length} tags ready`;
+            document.getElementById('modalDescInput').value = desc;
+            document.getElementById('modalSocialHookInput').value = hook;
+
+            const badge = document.getElementById('listingSourceBadge');
+            const noteEl = document.getElementById('listingStatusNote');
+            if (pack.source === 'gemini') {
+                badge.innerText = `✨ Gemini AI (${pack.model || 'gemini-2.5-flash'})`;
+                badge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700";
+                noteEl.classList.add('hidden');
+            } else {
+                badge.innerText = "⚡ Instant Static Template";
+                badge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700";
+                if (pack.error || pack.note) {
+                    noteEl.innerText = pack.error || pack.note;
+                    noteEl.classList.remove('hidden');
+                } else {
+                    noteEl.classList.add('hidden');
+                }
+            }
+        }
+
+        async function openListingModal(index) {
+            activeListingModalIndex = index;
+            const item = catalog[index];
+            document.getElementById('modalItemTitle').innerText = item.name;
+            document.getElementById('listingModal').classList.remove('hidden');
+
+            // Populate instant static fallback first for zero latency
+            let baseTitle = `${item.name} - Gothic Tabletop Gaming Decor & Dice Accessory, 3D Printed`;
+            if (baseTitle.length > 140) baseTitle = baseTitle.substring(0, 137) + "...";
+            const staticTags = [
+                "dice tower", "gothic home decor", "dnd accessory", "tabletop rpg",
+                "dungeons and dragons", "dm gift", "3d printed decor", "dice tray",
+                "gothic shelf", "geek gaming gift", "fantasy tabletop", "resin print", "rpg dice vault"
+            ];
+            const staticDesc = `Elevate your game table or altar with the ${item.name}, precision crafted by Gilgarips 3D Studio in St. Clair Shores, Michigan.\n\n` +
+                         `SPECIFICATIONS & DIMENSIONS:\n` +
+                         `• Box Dimensions: ${item.boxLength || 9}" x ${item.boxWidth || 6}" x ${item.boxHeight || 4}"\n` +
+                         `• Package Weight: ${item.packageWeight || 14} oz\n` +
+                         `• Material: High-grade ${item.materialType || 'PLA Pro'} (Durable, matte artisan finish)\n` +
+                         `• Sourced & Designed by: ${item.patreonSource}\n\n` +
+                         `SHIPPING & PACKAGING:\n` +
+                         `Ships securely cushioned via USPS Ground Advantage with full tracking.\n\n` +
+                         `DISCLAIMER:\n` +
+                         `Keep away from extreme heat (>125°F). Dice and tabletop miniatures shown in photos are for scale demonstration only.`;
+            const staticHook = `Stop rolling critical fails on a flat table—watch how the ${item.name} transforms every D&D session right off the print bed! Precision printed in Michigan with ${item.materialType || 'PLA Pro'} and available now in the Gilgarips 3D shop.`;
+
+            populateListingModalFields({
+                title: baseTitle,
+                tags: staticTags,
+                mayhem_description: staticDesc,
+                social_hook: staticHook,
+                source: 'static_fallback'
+            });
+
+            // If Gemini API Key is configured, automatically fetch AI listing pack
+            if (appSettings.gemini_api_key) {
+                await regenerateListingWithGemini();
+            }
+        }
+
+        async function regenerateListingWithGemini() {
+            if (activeListingModalIndex < 0 || !catalog[activeListingModalIndex]) return;
+            const item = catalog[activeListingModalIndex];
+            const btn = document.getElementById('regenGeminiBtn');
+            const origText = btn.innerHTML;
+            btn.innerHTML = `<span>⏳</span> Generating via Gemini...`;
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/listings/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ item, force_static: false })
+                });
+                if (res.ok) {
+                    const pack = await res.json();
+                    populateListingModalFields(pack);
+                }
+            } catch (err) {
+                console.error("Gemini listing call failed:", err);
+            } finally {
+                btn.innerHTML = origText;
+                btn.disabled = false;
+            }
+        }
+
+        function closeListingModal() { document.getElementById('listingModal').classList.add('hidden'); }
+        function copyField(elementId) {
+            const el = document.getElementById(elementId);
+            el.select();
+            navigator.clipboard.writeText(el.value);
+            alert("Copied to clipboard!");
+        }
+
+        // Slip Generator & Printing
+        function openSlipModal(index) {
+            syncSettingsToUI();
+            document.getElementById('slipModal').classList.remove('hidden');
+        }
+        function closeSlipModal() { document.getElementById('slipModal').classList.add('hidden'); }
+        function printSlip() {
+            const slipHtml = document.getElementById('printableCard').outerHTML;
+            const printWindow = window.open('', '', 'width=600,height=600');
+            printWindow.document.write('<html><head><title>Print Mayhem Slip</title><script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"><\/script></head><body class="p-6 flex items-center justify-center">' + slipHtml + '</body></html>');
+            printWindow.document.close();
+            setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+        }
+
+        // Admin Center Modal Functions
+        function openAdminModal(focusSection = null) {
+            // Reset platform fee lock to locked by default whenever Admin Center opens
+            platformFeesUnlocked = false;
+            updateFeeLockUIState();
+
+            document.getElementById('adminStorageRoot').value = appSettings.storage_root || '';
+            document.getElementById('adminGeminiKey').value = appSettings.gemini_api_key || '';
+            document.getElementById('adminGeminiModel').value = appSettings.gemini_model || 'gemini-2.5-flash';
+            document.getElementById('adminBrandPersona').value = appSettings.brand_persona || '';
+
+            const slip = appSettings.slip_config || {};
+            document.getElementById('adminSlipStudio').value = slip.studio_name || 'Gilgarips 3D Studio';
+            document.getElementById('adminSlipTagline').value = slip.tagline || 'Tabletop Gaming Gear & Gothic Home Decor';
+            document.getElementById('adminSlipCoupon').value = slip.coupon_code || 'DIRECT15';
+            document.getElementById('adminSlipDiscount').value = slip.discount_pct || 15;
+            document.getElementById('adminSlipUrl').value = slip.store_url || 'Mayhem Marketplace / Gilgarips3D';
+
+            editingPatreons = getPatreonsList().map(p => ({ ...p }));
+
+            renderAdminChannelsTable();
+            renderAdminPatreonsTable();
+            document.getElementById('adminModal').classList.remove('hidden');
+
+            if (focusSection === 'patreons') {
+                setTimeout(() => {
+                    document.getElementById('adminPatreonsSection')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 80);
+            }
+        }
+
+        function closeAdminModal() {
+            platformFeesUnlocked = false;
+            document.getElementById('adminModal').classList.add('hidden');
+        }
+
+        function togglePlatformFeeLock() {
+            if (!platformFeesUnlocked) {
+                const confirmed = confirm(
+                    "⚠️ WARNING: Unlock Platform Fee Formulas?\n\n" +
+                    "Platform commission rates, payment processing percentages, and fixed transaction fees are locked by default to protect your pricing math.\n\n" +
+                    "Modifying these values will recalculate Net Margins, Recommended Target Prices, and YTD Platform Leakage across your entire catalog.\n\n" +
+                    "Do you want to unlock the platform fee fields to make changes?"
+                );
+                if (!confirmed) return;
+                platformFeesUnlocked = true;
+            } else {
+                // Preserve any edits made in the DOM before re-locking
+                syncAdminChannelsFeeInputsToMemory();
+                platformFeesUnlocked = false;
+            }
+            updateFeeLockUIState();
+            renderAdminChannelsTable();
+        }
+
+        function updateFeeLockUIState() {
+            const btn = document.getElementById('unlockFeesBtn');
+            const banner = document.getElementById('feeUnlockWarningBanner');
+            if (!btn || !banner) return;
+
+            if (platformFeesUnlocked) {
+                btn.innerHTML = `<span>🔓</span> Lock Fee Rates`;
+                btn.className = "bg-rose-950/80 hover:bg-rose-900/80 text-rose-300 border border-rose-700/80 px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0";
+                banner.classList.remove('hidden');
+            } else {
+                btn.innerHTML = `<span>🔒</span> Unlock Fee Rates`;
+                btn.className = "bg-amber-950/70 hover:bg-amber-900/80 text-amber-300 border border-amber-700/70 px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0";
+                banner.classList.add('hidden');
+            }
+        }
+
+        function syncAdminChannelsFeeInputsToMemory() {
+            if (!appSettings.channels) return;
+            appSettings.channels = appSettings.channels.map((ch, idx) => {
+                const activeEl = document.getElementById(`ch_active_${idx}`);
+                const modelEl = document.getElementById(`ch_model_${idx}`);
+                if (!activeEl || !modelEl) return ch;
+                return {
+                    ...ch,
+                    active: activeEl.checked,
+                    fee_model: modelEl.value,
+                    commission_pct: parseFloat(document.getElementById(`ch_comm_${idx}`)?.value) || 0,
+                    processing_pct: parseFloat(document.getElementById(`ch_proc_${idx}`)?.value) || 0,
+                    listing_fee: parseFloat(document.getElementById(`ch_list_${idx}`)?.value) || 0,
+                    fixed_fee: parseFloat(document.getElementById(`ch_fixed_${idx}`)?.value) || 0,
+                    monthly_sub: parseFloat(document.getElementById(`ch_sub_${idx}`)?.value) || 0,
+                };
+            });
+        }
+
+        function renderAdminChannelsTable() {
+            const tbody = document.getElementById('adminChannelsTableBody');
+            const disabledAttr = platformFeesUnlocked ? '' : 'disabled';
+            const lockedClasses = platformFeesUnlocked
+                ? 'bg-slate-900 border-slate-700 text-white'
+                : 'bg-slate-950 border-slate-800/80 text-slate-500 opacity-60 cursor-not-allowed';
+
+            tbody.innerHTML = (appSettings.channels || []).map((ch, idx) => `
+                <tr>
+                    <td class="py-2 px-2">
+                        <input type="checkbox" id="ch_active_${idx}" ${ch.active !== false ? 'checked' : ''} class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 cursor-pointer">
+                    </td>
+                    <td class="py-2 px-2 font-semibold text-white">
+                        ${ch.name} <span class="text-[10px] text-slate-500 font-mono">(${ch.short})</span>
+                        ${!platformFeesUnlocked ? '<span class="ml-1 text-[10px] text-amber-500/80" title="Fee rates locked">🔒</span>' : ''}
+                    </td>
+                    <td class="py-2 px-2">
+                        <select id="ch_model_${idx}" ${disabledAttr} class="border rounded px-2 py-1 text-xs ${lockedClasses}">
+                            <option value="standard" ${ch.fee_model === 'standard' ? 'selected' : ''}>% Txn + Processing + Fixed</option>
+                            <option value="poshmark" ${ch.fee_model === 'poshmark' ? 'selected' : ''}>Poshmark Tiered (20% / $2.95)</option>
+                            <option value="subscription" ${ch.fee_model === 'subscription' ? 'selected' : ''}>Flat Monthly Subscription</option>
+                        </select>
+                    </td>
+                    <td class="py-2 px-2">
+                        <input type="number" step="0.05" id="ch_comm_${idx}" ${disabledAttr} value="${ch.commission_pct || 0}" class="w-16 border rounded px-2 py-1 text-xs font-mono ${lockedClasses}">
+                    </td>
+                    <td class="py-2 px-2">
+                        <input type="number" step="0.05" id="ch_proc_${idx}" ${disabledAttr} value="${ch.processing_pct || 0}" class="w-16 border rounded px-2 py-1 text-xs font-mono ${lockedClasses}">
+                    </td>
+                    <td class="py-2 px-2">
+                        <input type="number" step="0.05" id="ch_list_${idx}" ${disabledAttr} value="${ch.listing_fee || 0}" class="w-16 border rounded px-2 py-1 text-xs font-mono ${lockedClasses}">
+                    </td>
+                    <td class="py-2 px-2">
+                        <input type="number" step="0.05" id="ch_fixed_${idx}" ${disabledAttr} value="${ch.fixed_fee || 0}" class="w-16 border rounded px-2 py-1 text-xs font-mono ${lockedClasses}">
+                    </td>
+                    <td class="py-2 px-2">
+                        <input type="number" step="1" id="ch_sub_${idx}" ${disabledAttr} value="${ch.monthly_sub || 0}" class="w-16 border rounded px-2 py-1 text-xs font-mono ${lockedClasses}">
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Backed Patreons & Design Subscriptions Admin Table
+        const PATREON_COLOR_OPTIONS = [
+            { value: "text-emerald-400", label: "Emerald (Green)" },
+            { value: "text-purple-400", label: "Purple" },
+            { value: "text-amber-400", label: "Amber (Gold)" },
+            { value: "text-cyan-400", label: "Cyan" },
+            { value: "text-blue-400", label: "Blue" },
+            { value: "text-rose-400", label: "Rose (Red)" },
+            { value: "text-indigo-400", label: "Indigo" },
+            { value: "text-slate-400", label: "Slate (Neutral)" }
+        ];
+
+        function syncAdminPatreonsFromDOM() {
+            editingPatreons = editingPatreons.map((p, idx) => {
+                const activeEl = document.getElementById(`pat_active_${idx}`);
+                const nameEl = document.getElementById(`pat_name_${idx}`);
+                const costEl = document.getElementById(`pat_cost_${idx}`);
+                const colorEl = document.getElementById(`pat_color_${idx}`);
+                if (!nameEl) return p;
+                return {
+                    ...p,
+                    active: activeEl ? activeEl.checked : true,
+                    name: nameEl.value.trim() || 'Unnamed Designer',
+                    subCost: parseFloat(costEl?.value) || 0,
+                    color: colorEl?.value || 'text-indigo-400'
+                };
+            });
+        }
+
+        function renderAdminPatreonsTable() {
+            const tbody = document.getElementById('adminPatreonsTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = editingPatreons.map((p, idx) => {
+                const isNone = p.name === 'None';
+                const colorOpts = PATREON_COLOR_OPTIONS.map(opt =>
+                    `<option value="${opt.value}" ${p.color === opt.value ? 'selected' : ''}>${opt.label}</option>`
+                ).join('');
+                return `
+                    <tr>
+                        <td class="py-2 px-2">
+                            <input type="checkbox" id="pat_active_${idx}" ${p.active !== false ? 'checked' : ''} class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-emerald-500 cursor-pointer">
+                        </td>
+                        <td class="py-2 px-2">
+                            <input type="text" id="pat_name_${idx}" value="${p.name}" ${isNone ? 'readonly' : ''} class="w-full max-w-xs bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs font-semibold ${p.color || 'text-white'}">
+                        </td>
+                        <td class="py-2 px-2">
+                            <input type="number" step="0.50" min="0" id="pat_cost_${idx}" value="${p.subCost || 0}" ${isNone ? 'readonly' : ''} class="w-24 bg-slate-900 border border-slate-700 rounded px-2.5 py-1 text-xs font-mono text-white">
+                        </td>
+                        <td class="py-2 px-2">
+                            <select id="pat_color_${idx}" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-slate-200">
+                                ${colorOpts}
+                            </select>
+                        </td>
+                        <td class="py-2 px-2 text-right">
+                            ${isNone
+                                ? '<span class="text-[10px] text-slate-600 font-mono">System</span>'
+                                : `<button type="button" onclick="removeAdminPatreonRow(${idx})" class="text-rose-400 hover:text-rose-300 bg-rose-950/40 border border-rose-900/50 px-2 py-1 rounded text-[11px]">✕</button>`
+                            }
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function addAdminPatreonRow() {
+            syncAdminPatreonsFromDOM();
+            // Insert before "None" if "None" is at the end
+            const noneIdx = editingPatreons.findIndex(p => p.name === 'None');
+            const newEntry = {
+                name: "New Patreon Designer",
+                subCost: 15.0,
+                color: "text-purple-400",
+                active: true
+            };
+            if (noneIdx >= 0) {
+                editingPatreons.splice(noneIdx, 0, newEntry);
+            } else {
+                editingPatreons.push(newEntry);
+            }
+            renderAdminPatreonsTable();
+        }
+
+        function removeAdminPatreonRow(idx) {
+            syncAdminPatreonsFromDOM();
+            const target = editingPatreons[idx];
+            if (!target || target.name === 'None') return;
+            if (confirm(`Remove "${target.name}" from your backed Patreons list?`)) {
+                editingPatreons.splice(idx, 1);
+                renderAdminPatreonsTable();
+            }
+        }
+
+        async function browseStorageDirectory() {
+            try {
+                const res = await fetch('/api/admin/pick-directory', { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.selected && data.storage_root) {
+                        document.getElementById('adminStorageRoot').value = data.storage_root;
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function saveAdminSettings() {
+            syncAdminPatreonsFromDOM();
+
+            const updatedChannels = (appSettings.channels || []).map((ch, idx) => ({
+                ...ch,
+                active: document.getElementById(`ch_active_${idx}`).checked,
+                fee_model: document.getElementById(`ch_model_${idx}`).value,
+                commission_pct: parseFloat(document.getElementById(`ch_comm_${idx}`).value) || 0,
+                processing_pct: parseFloat(document.getElementById(`ch_proc_${idx}`).value) || 0,
+                listing_fee: parseFloat(document.getElementById(`ch_list_${idx}`).value) || 0,
+                fixed_fee: parseFloat(document.getElementById(`ch_fixed_${idx}`).value) || 0,
+                monthly_sub: parseFloat(document.getElementById(`ch_sub_${idx}`).value) || 0,
+            }));
+
+            const payload = {
+                ...appSettings,
+                storage_root: document.getElementById('adminStorageRoot').value.trim(),
+                gemini_api_key: document.getElementById('adminGeminiKey').value.trim(),
+                gemini_model: document.getElementById('adminGeminiModel').value.trim() || 'gemini-2.5-flash',
+                brand_persona: document.getElementById('adminBrandPersona').value.trim(),
+                slip_config: {
+                    studio_name: document.getElementById('adminSlipStudio').value.trim() || 'Gilgarips 3D Studio',
+                    tagline: document.getElementById('adminSlipTagline').value.trim() || 'Tabletop Gaming Gear & Gothic Home Decor',
+                    coupon_code: document.getElementById('adminSlipCoupon').value.trim() || 'DIRECT15',
+                    discount_pct: parseInt(document.getElementById('adminSlipDiscount').value) || 15,
+                    store_url: document.getElementById('adminSlipUrl').value.trim() || 'Mayhem Marketplace / Gilgarips3D'
+                },
+                channels: updatedChannels,
+                patreons: editingPatreons
+            };
+
+            try {
+                const res = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    appSettings = data.settings;
+                    if (data.catalog) catalog = data.catalog;
+                    if (data.uploadedMonths) uploadedMonths = data.uploadedMonths;
+                }
+            } catch (err) {
+                appSettings = payload;
+            }
+
+            syncSettingsToUI();
+            calculateAll();
+            renderCatalog();
+            renderPatreonCards();
+            renderPlatformTotalFees();
+            renderMonthsGrid();
+            closeAdminModal();
+        }
+
+        // CSV Imports (Preserved 100% + Synced to Disk Backend)
+        function handleEtsyCatalogImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    let imported = 0;
+                    results.data.forEach(row => {
+                        const title = row['TITLE'] || row['Title'] || row['Item Name'];
+                        if (!title) return;
+                        const price = parseFloat(row['PRICE'] || row['Price'] || 20.00);
+
+                        catalog.push({
+                            name: title,
+                            salePrice: isNaN(price) ? 20.00 : price,
+                            itemCost: 0.00,
+                            shippingCharged: 5.50,
+                            packageWeight: 12,
+                            boxLength: 9,
+                            boxWidth: 6,
+                            boxHeight: 4,
+                            freeShippingOver35: true,
+                            filamentGrams: 110,
+                            filamentCostPerKg: 20.00,
+                            printHours: 4.5,
+                            powerRate: 0.21,
+                            patreonSource: 'Gilgarips 3D',
+                            suppliesCost: 1.00,
+                            stockOnHand: 1,
+                            materialType: 'PLA Pro / Tough PLA',
+                            activePlatforms: { Etsy: true, eBay: false, Poshmark: false, Mayhem: true, Depop: true, TikTok: true },
+                            ytdSales: { Etsy: 0, eBay: 0, Poshmark: 0, Mayhem: 0, Depop: 0, TikTok: 0 },
+                            etsyMonthlySales: {}
+                        });
+                        imported++;
+                    });
+                    persistCatalog();
+                    alert(`Successfully imported and scaffolded ${imported} listings from Etsy CSV.`);
+                }
+            });
+        }
+
+        async function handleEtsySalesImport(event) {
+            const files = Array.from(event.target.files);
+            if (!files || files.length === 0) return;
+
+            const allDetectedMonths = new Set();
+            for (const file of files) {
+                await processSingleSalesFile(file, allDetectedMonths);
+            }
+
+            catalog.forEach(item => {
+                if (item.etsyMonthlySales && Object.keys(item.etsyMonthlySales).length > 0) {
+                    let totalUnits = 0;
+                    for (let mKey in item.etsyMonthlySales) {
+                        totalUnits += item.etsyMonthlySales[mKey] || 0;
+                    }
+                    if (!item.ytdSales) item.ytdSales = { Etsy: 0, eBay: 0, Poshmark: 0, Mayhem: 0, Depop: 0, TikTok: 0 };
+                    item.ytdSales.Etsy = totalUnits;
+                }
+            });
+
+            if (allDetectedMonths.size > 0) {
+                allDetectedMonths.forEach(m => uploadedMonths[m] = true);
+                persistMonths();
+            }
+
+            persistCatalog();
+            alert(`Sales CSVs processed and synchronized to catalog_state.json.`);
+        }
+
+        function processSingleSalesFile(file, allDetectedMonths) {
+            return new Promise((resolve) => {
+                const fileName = file.name.toLowerCase();
+                let fileMonthKey = '';
+
+                MONTH_NAMES.forEach((m, idx) => {
+                    const padMonth = String(idx + 1).padStart(2, '0');
+                    if (fileName.includes(m.toLowerCase()) || fileName.includes(`_${idx + 1}.csv`) || fileName.includes(`-${padMonth}.csv`)) {
+                        allDetectedMonths.add(m);
+                        fileMonthKey = `2026-${padMonth}`;
+                    }
+                });
+
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        const monthlyItemSales = {};
+
+                        results.data.forEach(row => {
+                            const dateStr = row['Date'] || row['Sale Date'] || row['Order Date'] || '';
+                            let rowMonthKey = fileMonthKey;
+                            
+                            if (dateStr) {
+                                const parsedDate = new Date(dateStr);
+                                if (!isNaN(parsedDate.getTime())) {
+                                    const mName = MONTH_NAMES[parsedDate.getMonth()];
+                                    allDetectedMonths.add(mName);
+                                    rowMonthKey = `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}`;
+                                }
+                            }
+                            if (!rowMonthKey) rowMonthKey = 'unknown';
+
+                            const rowType = (row['Type'] || '').trim();
+                            const rowTitle = (row['Title'] || row['Item Name'] || '').trim();
+                            let rawTitle = '';
+                            let units = 0;
+
+                            if (rowType === 'Fee' && rowTitle.startsWith('Transaction fee:')) {
+                                rawTitle = rowTitle.replace('Transaction fee:', '').trim();
+                                if (rawTitle.toLowerCase() === 'shipping') return;
+                                const fee = parseFloat(String(row['Fees & Taxes'] || '').replace(/[$,\-]/g, '')) || 0;
+                                units = Math.max(1, Math.round((fee / 0.065) / 25.00));
+                            } else if (row['Item Name'] || row['Title']) {
+                                rawTitle = row['Item Name'] || row['Title'];
+                                units = parseInt(row['Quantity'] || 1) || 1;
+                            }
+
+                            if (!rawTitle || units <= 0) return;
+                            const normTitle = normalizeString(rawTitle);
+                            if (!monthlyItemSales[rowMonthKey]) monthlyItemSales[rowMonthKey] = {};
+                            monthlyItemSales[rowMonthKey][normTitle] = (monthlyItemSales[rowMonthKey][normTitle] || 0) + units;
+                        });
+
+                        for (let mKey in monthlyItemSales) {
+                            const titleCounts = monthlyItemSales[mKey];
+                            catalog.forEach(item => {
+                                if (!item.etsyMonthlySales) item.etsyMonthlySales = {};
+                                const normItem = normalizeString(item.name);
+                                for (let soldTitle in titleCounts) {
+                                    if (soldTitle.includes(normItem) || normItem.includes(soldTitle)) {
+                                        item.etsyMonthlySales[mKey] = (item.etsyMonthlySales[mKey] || 0) + titleCounts[soldTitle];
+                                    }
+                                }
+                            });
+                        }
+                        resolve();
+                    }
+                });
+            });
+        }
+
+        function importBackupData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    catalog = Array.isArray(parsed) ? parsed : (parsed.catalog || []);
+                    if (parsed.uploadedMonths) {
+                        uploadedMonths = parsed.uploadedMonths;
+                        persistMonths();
+                    }
+                    persistCatalog();
+                    alert(`Restored and scaffolded ${catalog.length} items from backup.`);
+                } catch (err) {
+                    alert("Error parsing backup JSON.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportData(notify = true) {
+            const backupPayload = {
+                catalog,
+                uploadedMonths,
+                exportedAt: new Date().toISOString()
+            };
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", "production_cockpit_backup.json");
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
+
