@@ -26,6 +26,10 @@
                 </div>
                 
                 <div class="flex flex-wrap items-center gap-2.5">
+                    <button id="btnCheckUpdate" onclick="handleAppUpdateCheck(false)" class="bg-indigo-950/70 hover:bg-indigo-900/80 text-indigo-300 px-3.5 py-2 rounded-xl text-xs font-semibold border border-indigo-700/60 transition flex items-center gap-1.5 shadow">
+                        <span id="updateIcon">🔄</span> <span id="updateBtnText">Check for Updates</span>
+                    </button>
+
                     <button onclick="openAdminModal()" class="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 px-3.5 py-2 rounded-xl text-xs font-semibold border border-amber-500/40 transition flex items-center gap-1.5 shadow">
                         <span>⚙️</span> Admin Center
                     </button>
@@ -96,12 +100,21 @@
 
                     <!-- Drag and Drop Slicer Dropzone -->
                     <div id="dropzone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)" class="border-2 border-dashed border-indigo-500/40 hover:border-indigo-400 bg-indigo-950/20 hover:bg-indigo-950/40 rounded-xl p-3.5 text-center transition cursor-pointer">
-                        <input type="file" id="slicerFileInput" accept=".gcode,.3mf" class="hidden" onchange="handleSlicerFile(this.files[0])">
+                        <input type="file" id="slicerFileInput" accept=".gcode,.3mf" multiple class="hidden" onchange="handleSlicerFiles(this.files)">
                         <label for="slicerFileInput" class="cursor-pointer block">
                             <span class="text-xl">🖨️</span>
-                            <p class="text-xs font-semibold text-indigo-300 mt-1">Drop OrcaSlicer / Bambu G-Code or .3MF</p>
-                            <p class="text-[10px] text-slate-400">Extracts grams, hours, bed temp, 3D bounding box (+2" pad) & copies to product folder</p>
+                            <p class="text-xs font-semibold text-indigo-300 mt-1">Drop G-Code or .3MF (Single or Multi-Plate)</p>
+                            <p class="text-[10px] text-slate-400">Select or drop multiple files for multi-part prints • Sums grams & hours, finds max footprint box fit</p>
                         </label>
+                    </div>
+
+                    <!-- Multi-Plate Breakdown Pill List -->
+                    <div id="multiPlateBreakdown" class="hidden bg-slate-950/80 border border-indigo-900/60 rounded-xl p-2.5 text-xs space-y-1.5">
+                        <div class="flex justify-between items-center text-[11px] font-semibold text-indigo-300">
+                            <span id="multiPlateTitle">🧩 Combined Multi-Part Prints</span>
+                            <span id="multiPlateFileCount" class="font-mono bg-indigo-950 px-1.5 py-0.5 rounded border border-indigo-800 text-[10px]">2 plates</span>
+                        </div>
+                        <div id="multiPlateList" class="space-y-1 max-h-28 overflow-y-auto text-[10px] font-mono text-slate-400 pr-1"></div>
                     </div>
 
                     <!-- 3D Spatial Packaging Fit Feedback Banner -->
@@ -274,7 +287,9 @@
                         <div class="border-t border-slate-800 pt-3 space-y-2">
                             <div class="flex justify-between items-center">
                                 <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Product Photos</span>
-                                <span class="text-[10px] text-slate-500 font-mono">01_hero.jpg, 02_detail.jpg...</span>
+                                <button type="button" onclick="openEtsyPhotoModal()" class="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-semibold hover:underline">
+                                    <span>🌐 Pull from Etsy Link</span>
+                                </button>
                             </div>
                             <div id="photoDropzone" ondragover="event.preventDefault(); this.classList.add('border-emerald-400')" ondragleave="this.classList.remove('border-emerald-400')" ondrop="handleFormPhotoDrop(event)" class="border border-dashed border-slate-700 hover:border-emerald-400 bg-slate-950/60 rounded-xl p-2.5 text-center transition cursor-pointer">
                                 <input type="file" id="formPhotoInput" accept="image/*" multiple class="hidden" onchange="uploadPhotosForCurrentForm(this.files)">
@@ -518,6 +533,63 @@
         </div>
     </div>
 
+    <!-- MODAL 2B: Pull Photos from Etsy Listing Link -->
+    <div id="etsyPhotoModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl">🌐</span>
+                    <div>
+                        <h3 class="text-base font-bold text-white">Pull Photos from Etsy Listing</h3>
+                        <p class="text-xs text-slate-400">Download high-res gallery images directly into your product photos folder.</p>
+                    </div>
+                </div>
+                <button onclick="closeEtsyPhotoModal()" class="text-slate-400 hover:text-white">✕</button>
+            </div>
+
+            <!-- URL Input Form -->
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-300 mb-1">Etsy Listing URL</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="etsyListingUrlInput" placeholder="https://www.etsy.com/listing/..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                        <button id="btnFetchEtsy" onclick="submitEtsyUrl()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shrink-0 shadow">Fetch Photos</button>
+                    </div>
+                </div>
+
+                <!-- Anti-Bot Warning / HTML Paste Fallback -->
+                <div id="etsyBotNotice" class="hidden rounded-xl p-3 border border-amber-900/60 bg-amber-950/30 text-xs space-y-2 text-amber-200">
+                    <div class="font-bold flex items-center justify-between">
+                        <span>🛡️ Etsy Anti-Bot Gate Triggered</span>
+                        <span class="text-[10px] font-mono text-amber-400">403 Protection</span>
+                    </div>
+                    <p class="text-[11px] text-slate-300 leading-relaxed">
+                        Etsy blocked the automated server request. To grab all high-res photos instantly:
+                        <br>1. Open the listing in your browser.
+                        <br>2. Right-click anywhere &gt; <strong>View Page Source</strong> (or press <strong>Ctrl+U</strong>).
+                        <br>3. Copy all (<strong>Ctrl+A</strong>, <strong>Ctrl+C</strong>) and paste below:
+                    </p>
+                    <textarea id="etsyPastedHtmlInput" rows="3" placeholder="Paste listing HTML or page source here..." class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-[11px] text-slate-200 font-mono"></textarea>
+                    <button onclick="submitPastedEtsyHtml()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs">Extract Photos from HTML</button>
+                </div>
+
+                <!-- Found Photos Review & Ingest Grid -->
+                <div id="etsyPhotosResultSection" class="hidden space-y-3 pt-2 border-t border-slate-800">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-semibold text-slate-200" id="etsyFoundCount">Found Photos (0)</span>
+                        <button onclick="toggleSelectAllEtsyPhotos()" id="btnSelectAllEtsy" class="text-[11px] text-indigo-400 hover:text-indigo-300">Deselect All</button>
+                    </div>
+                    <div id="etsyPhotosGrid" class="grid grid-cols-4 gap-2.5 max-h-56 overflow-y-auto p-1 bg-slate-950 rounded-xl border border-slate-800"></div>
+                    <button id="btnIngestEtsyPhotos" onclick="confirmIngestEtsyPhotos()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-lg">Save Selected Photos to Product Folder</button>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2 border-t border-slate-800">
+                <button onclick="closeEtsyPhotoModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-1.5 rounded-xl text-xs font-semibold">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL 3: Admin Center (Storage Root, Dynamic Marketplace Registry, Gemini AI & Slip Config) -->
     <div id="adminModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full p-6 space-y-6 shadow-2xl max-h-[92vh] overflow-y-auto">
@@ -534,7 +606,7 @@
                 <button onclick="closeAdminModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
             </div>
 
-            <!-- Section 1: Master Storage Directory -->
+            <!-- Section 1: Master Storage Directory & App Updates -->
             <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
                 <div class="flex justify-between items-center">
                     <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400">1. Master Storage Directory (Local / Google Drive)</h4>
@@ -543,6 +615,15 @@
                 <div class="flex flex-col sm:flex-row gap-2">
                     <input type="text" id="adminStorageRoot" placeholder="e.g. G:\My Drive\Gilgarips_Catalog" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
                     <button type="button" onclick="browseStorageDirectory()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-700 shrink-0">📁 Browse Folder...</button>
+                </div>
+                <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
+                    <div class="text-xs text-slate-400">
+                        Application Version: <strong class="text-white font-mono">v2.1.0</strong>
+                        <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
+                    </div>
+                    <button type="button" onclick="handleAppUpdateCheck(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow flex items-center gap-1.5">
+                        <span>🔄</span> Check & Pull Latest Update
+                    </button>
                 </div>
             </div>
 
@@ -703,10 +784,14 @@
         let editingIndex = -1;
         let activeListingModalIndex = -1;
         let currentStagedGcodeFilename = null;
+        let currentStagedGcodeFilenames = [];
         let currentBedTempC = 60;
         let pendingPhotoRowSlug = null;
         let platformFeesUnlocked = false;
         let editingPatreons = [];
+        let fetchedEtsyImages = [];
+        let selectedEtsyImageUrls = new Set();
+        let currentEtsyTargetSlug = null;
 
         const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -822,30 +907,43 @@
         function handleFileDrop(e) {
             e.preventDefault();
             document.getElementById('dropzone').classList.remove('border-indigo-400');
-            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                handleSlicerFile(e.dataTransfer.files[0]);
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleSlicerFiles(e.dataTransfer.files);
             }
         }
 
         async function handleSlicerFile(file) {
             if (!file) return;
+            handleSlicerFiles([file]);
+        }
+
+        async function handleSlicerFiles(files) {
+            if (!files || files.length === 0) return;
             const currentItemName = document.getElementById('itemName').value || '';
             const formData = new FormData();
-            formData.append('file', file);
+            Array.from(files).forEach(f => formData.append('files', f));
             formData.append('item_name', currentItemName);
 
             try {
-                const res = await fetch('/api/slicer/parse', {
+                const endpoint = files.length > 1 ? '/api/slicer/parse-multiple' : '/api/slicer/parse';
+                const bodyData = files.length > 1 ? formData : (() => {
+                    const singleFd = new FormData();
+                    singleFd.append('file', files[0]);
+                    singleFd.append('item_name', currentItemName);
+                    return singleFd;
+                })();
+
+                const res = await fetch(endpoint, {
                     method: 'POST',
-                    body: formData
+                    body: bodyData
                 });
                 if (!res.ok) throw new Error('Backend slicer parse error');
                 const data = await res.json();
                 applySlicerAnalysisToUI(data);
             } catch (err) {
                 console.error("Falling back to browser slicer parser:", err);
-                const text = await file.text();
-                parseGcodeTextFallback(text, file.name);
+                const text = await files[0].text();
+                parseGcodeTextFallback(text, files[0].name);
             }
         }
 
@@ -866,8 +964,32 @@
             if (data.suggested_title && document.getElementById('itemName').value === 'Gothic Skull Dice Tower') {
                 document.getElementById('itemName').value = data.suggested_title;
             }
-            if (data.saved_gcode && data.saved_gcode.staged_filename) {
+
+            // Staged filenames handling
+            if (data.staged_filenames && data.staged_filenames.length > 0) {
+                currentStagedGcodeFilenames = data.staged_filenames;
+                currentStagedGcodeFilename = data.staged_filenames[0];
+            } else if (data.saved_gcode && data.saved_gcode.staged_filename) {
                 currentStagedGcodeFilename = data.saved_gcode.staged_filename;
+                currentStagedGcodeFilenames = [data.saved_gcode.staged_filename];
+            }
+
+            // Render multi-plate breakdown if present
+            const breakdownEl = document.getElementById('multiPlateBreakdown');
+            const listEl = document.getElementById('multiPlateList');
+            const countEl = document.getElementById('multiPlateFileCount');
+            if (data.individual_files && data.individual_files.length > 1) {
+                breakdownEl.classList.remove('hidden');
+                countEl.innerText = `${data.individual_files.length} plates combined`;
+                listEl.innerHTML = data.individual_files.map((f, i) => `
+                    <div class="flex justify-between items-center py-0.5 border-b border-slate-900 last:border-0">
+                        <span class="truncate max-w-[170px]" title="${f.filename}">#${i+1} ${f.filename}</span>
+                        <span class="text-indigo-300 shrink-0">${f.filament_grams}g • ${f.print_hours}h • max ${f.bbox_in?.x}"×${f.bbox_in?.y}"</span>
+                    </div>
+                `).join('');
+            } else {
+                breakdownEl.classList.add('hidden');
+                listEl.innerHTML = '';
             }
 
             if (data.bbox_in) {
@@ -1398,21 +1520,44 @@
         function loadItemIntoForm(index) {
             editingIndex = index;
             currentStagedGcodeFilename = null;
+            currentStagedGcodeFilenames = [];
             const item = catalog[index];
             populateForm(item);
             document.getElementById('formHeader').innerText = 'Editing: ' + item.name;
             document.getElementById('saveBtn').innerText = 'Update Item in Catalog & Disk';
             document.getElementById('cancelEditBtn').classList.remove('hidden');
+
+            // Render existing gcode files breakdown if multiple
+            const breakdownEl = document.getElementById('multiPlateBreakdown');
+            const listEl = document.getElementById('multiPlateList');
+            const countEl = document.getElementById('multiPlateFileCount');
+            if (item.gcodeFiles && item.gcodeFiles.length > 1) {
+                breakdownEl.classList.remove('hidden');
+                countEl.innerText = `${item.gcodeFiles.length} gcode files`;
+                listEl.innerHTML = item.gcodeFiles.map((gf, i) => `
+                    <div class="flex justify-between items-center py-0.5 border-b border-slate-900 last:border-0">
+                        <span class="truncate max-w-[220px]" title="${gf}">#${i+1} ${gf}</span>
+                        <span class="text-indigo-400 shrink-0">🖨️ on disk</span>
+                    </div>
+                `).join('');
+            } else {
+                breakdownEl.classList.add('hidden');
+                listEl.innerHTML = '';
+            }
+
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function resetForm() {
             editingIndex = -1;
             currentStagedGcodeFilename = null;
+            currentStagedGcodeFilenames = [];
             document.getElementById('formHeader').innerText = 'Item & Print Estimator';
             document.getElementById('saveBtn').innerText = 'Save Item to Catalog & Scaffold Disk';
             document.getElementById('cancelEditBtn').classList.add('hidden');
             document.getElementById('formPhotoGallery').innerHTML = '';
+            const breakdownEl = document.getElementById('multiPlateBreakdown');
+            if (breakdownEl) breakdownEl.classList.add('hidden');
         }
 
         async function saveCurrentItem() {
@@ -1426,7 +1571,8 @@
                     body: JSON.stringify({
                         item,
                         index: targetIndex,
-                        staged_gcode_filename: currentStagedGcodeFilename
+                        staged_gcode_filename: currentStagedGcodeFilename,
+                        staged_gcode_filenames: currentStagedGcodeFilenames
                     })
                 });
                 if (res.ok) {
@@ -1579,6 +1725,196 @@
             }
         }
 
+        // Etsy Listing Photo Fetcher & Ingestion
+        function openEtsyPhotoModal(slug = null, event = null) {
+            if (event) event.stopPropagation();
+            if (slug) {
+                currentEtsyTargetSlug = slug;
+            } else {
+                const itemName = document.getElementById('itemName').value || 'unnamed-item';
+                currentEtsyTargetSlug = (editingIndex >= 0 && catalog[editingIndex]?.slug) ? catalog[editingIndex].slug : slugify(itemName);
+            }
+
+            document.getElementById('etsyListingUrlInput').value = '';
+            document.getElementById('etsyPastedHtmlInput').value = '';
+            document.getElementById('etsyBotNotice').classList.add('hidden');
+            document.getElementById('etsyPhotosResultSection').classList.add('hidden');
+            document.getElementById('etsyPhotosGrid').innerHTML = '';
+            fetchedEtsyImages = [];
+            selectedEtsyImageUrls.clear();
+
+            document.getElementById('etsyPhotoModal').classList.remove('hidden');
+        }
+
+        function closeEtsyPhotoModal() {
+            document.getElementById('etsyPhotoModal').classList.add('hidden');
+        }
+
+        async function submitEtsyUrl() {
+            const url = document.getElementById('etsyListingUrlInput').value.trim();
+            if (!url) {
+                alert("Please enter a valid Etsy listing URL (e.g. https://www.etsy.com/listing/...)");
+                return;
+            }
+
+            const btn = document.getElementById('btnFetchEtsy');
+            const origText = btn.innerText;
+            btn.innerText = 'Fetching...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/etsy/fetch-photos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await res.json();
+                handleEtsyFetchResponse(data);
+            } catch (err) {
+                alert("Error connecting to server: " + err.message);
+            } finally {
+                btn.innerText = origText;
+                btn.disabled = false;
+            }
+        }
+
+        async function submitPastedEtsyHtml() {
+            const rawHtml = document.getElementById('etsyPastedHtmlInput').value.trim();
+            if (!rawHtml) {
+                alert("Please paste the page source HTML from your browser.");
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/etsy/fetch-photos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ raw_html: rawHtml })
+                });
+                const data = await res.json();
+                handleEtsyFetchResponse(data);
+            } catch (err) {
+                alert("Error parsing HTML: " + err.message);
+            }
+        }
+
+        function handleEtsyFetchResponse(data) {
+            const botNotice = document.getElementById('etsyBotNotice');
+            const resultSection = document.getElementById('etsyPhotosResultSection');
+
+            if (!data.success && data.is_blocked) {
+                botNotice.classList.remove('hidden');
+                resultSection.classList.add('hidden');
+                return;
+            }
+
+            if (!data.images || data.images.length === 0) {
+                alert(data.error || "No photos found. If Etsy is blocking requests, please paste the page source HTML.");
+                botNotice.classList.remove('hidden');
+                resultSection.classList.add('hidden');
+                return;
+            }
+
+            botNotice.classList.add('hidden');
+            resultSection.classList.remove('hidden');
+            fetchedEtsyImages = data.images;
+            selectedEtsyImageUrls = new Set(data.images); // Select all by default
+
+            if (data.title && document.getElementById('itemName').value === 'Gothic Skull Dice Tower') {
+                document.getElementById('itemName').value = data.title;
+            }
+
+            renderEtsyPhotosGrid();
+        }
+
+        function renderEtsyPhotosGrid() {
+            const grid = document.getElementById('etsyPhotosGrid');
+            const countEl = document.getElementById('etsyFoundCount');
+            countEl.innerText = `Found Photos (${selectedEtsyImageUrls.size}/${fetchedEtsyImages.length} selected)`;
+
+            grid.innerHTML = fetchedEtsyImages.map((imgUrl, i) => {
+                const isChecked = selectedEtsyImageUrls.has(imgUrl);
+                return `
+                    <div onclick="toggleEtsyPhotoSelection('${encodeURIComponent(imgUrl)}')" class="relative cursor-pointer rounded-lg overflow-hidden border ${isChecked ? 'border-amber-400 ring-2 ring-amber-400/50' : 'border-slate-800 opacity-60'} bg-slate-900 group">
+                        <img src="${imgUrl}" alt="Etsy Photo ${i+1}" class="w-full h-24 object-cover" onerror="this.onerror=null; this.src='/assets/logo.png'">
+                        <div class="absolute top-1 left-1 bg-slate-950/80 rounded px-1 text-[9px] font-mono text-slate-300">#${i+1}</div>
+                        <div class="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${isChecked ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-400'}">
+                            ${isChecked ? '✓' : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleEtsyPhotoSelection(encodedUrl) {
+            const url = decodeURIComponent(encodedUrl);
+            if (selectedEtsyImageUrls.has(url)) {
+                selectedEtsyImageUrls.delete(url);
+            } else {
+                selectedEtsyImageUrls.add(url);
+            }
+            renderEtsyPhotosGrid();
+        }
+
+        function toggleSelectAllEtsyPhotos() {
+            if (selectedEtsyImageUrls.size === fetchedEtsyImages.length) {
+                selectedEtsyImageUrls.clear();
+                document.getElementById('btnSelectAllEtsy').innerText = 'Select All';
+            } else {
+                selectedEtsyImageUrls = new Set(fetchedEtsyImages);
+                document.getElementById('btnSelectAllEtsy').innerText = 'Deselect All';
+            }
+            renderEtsyPhotosGrid();
+        }
+
+        async function confirmIngestEtsyPhotos() {
+            if (selectedEtsyImageUrls.size === 0) {
+                alert("Please select at least one photo to ingest.");
+                return;
+            }
+
+            const targetSlug = currentEtsyTargetSlug || slugify(document.getElementById('itemName').value || 'unnamed-item');
+            const btn = document.getElementById('btnIngestEtsyPhotos');
+            const origText = btn.innerText;
+            btn.innerText = 'Downloading & Saving High-Res Photos...';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/etsy/ingest-photos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        slug: targetSlug,
+                        image_urls: Array.from(selectedEtsyImageUrls)
+                    })
+                });
+
+                if (!res.ok) {
+                    const errData = await res.json();
+                    throw new Error(errData.detail || 'Failed to download Etsy photos');
+                }
+
+                const data = await res.json();
+                if (data.catalog) {
+                    catalog = data.catalog;
+                    renderCatalog();
+                }
+
+                // If editing current item, update form gallery
+                if (editingIndex >= 0 || targetSlug === slugify(document.getElementById('itemName').value)) {
+                    renderFormPhotos(data.photos || []);
+                }
+
+                closeEtsyPhotoModal();
+                alert(`Successfully saved ${data.downloaded_count || selectedEtsyImageUrls.size} photos to <root>/products/${targetSlug}/photos/`);
+            } catch (err) {
+                alert("Error ingesting photos: " + err.message);
+            } finally {
+                btn.innerText = origText;
+                btn.disabled = false;
+            }
+        }
+
         async function openStorageFolder(slug = null, event = null) {
             if (event) event.stopPropagation();
             try {
@@ -1690,6 +2026,7 @@
                         <td class="p-3 font-mono font-bold text-emerald-400 text-right">$${totalProfitDollars.toFixed(2)}</td>
                         <td class="p-3 font-mono font-bold text-slate-300 text-right">$${fin.machineRate.toFixed(2)}/h</td>
                         <td class="p-3 text-right space-x-1 whitespace-nowrap" onclick="event.stopPropagation()">
+                            <button onclick="openEtsyPhotoModal('${slug}', event)" title="Pull Photos from Etsy Listing URL" class="text-amber-300 hover:text-white text-[11px] bg-amber-950/70 px-2 py-1 rounded border border-amber-800">🌐 Etsy</button>
                             <button onclick="triggerRowPhotoUpload(event, '${slug}')" title="Upload Product Photos" class="text-slate-300 hover:text-white text-[11px] bg-slate-800 px-2 py-1 rounded border border-slate-700">📷</button>
                             <button onclick="openStorageFolder('${slug}', event)" title="Open Product Folder on Disk" class="text-slate-300 hover:text-white text-[11px] bg-slate-800 px-2 py-1 rounded border border-slate-700">📁</button>
                             <button onclick="openListingModal(${index})" title="Generate AI / Template Copy Pack" class="text-indigo-300 hover:text-white text-[11px] bg-indigo-950/70 px-2 py-1 rounded border border-indigo-800">📋 Pack</button>
@@ -2352,6 +2689,97 @@
             document.body.appendChild(dlAnchor);
             dlAnchor.click();
             dlAnchor.remove();
+        }
+
+        // App Auto-Updater Client Logic
+        async function handleAppUpdateCheck(isManual = false) {
+            const btn = document.getElementById('btnCheckUpdate');
+            const icon = document.getElementById('updateIcon');
+            const text = document.getElementById('updateBtnText');
+            const statusEl = document.getElementById('adminUpdateStatusText');
+
+            if (btn) {
+                btn.disabled = true;
+                icon.classList.add('animate-spin');
+                text.innerText = 'Checking...';
+            }
+            if (statusEl) statusEl.innerText = 'Checking for updates...';
+
+            try {
+                const res = await fetch('/api/update/check');
+                if (!res.ok) throw new Error('Update check request failed');
+                const data = await res.json();
+
+                if (data.update_available) {
+                    if (btn) {
+                        btn.className = "bg-emerald-600 hover:bg-emerald-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-lg transition flex items-center gap-1.5 animate-pulse";
+                        text.innerText = `Update to ${data.latest_version}`;
+                        icon.classList.remove('animate-spin');
+                        icon.innerText = '🚀';
+                        btn.disabled = false;
+                        btn.onclick = () => handleAppUpdateApply(data);
+                    }
+                    if (statusEl) {
+                        statusEl.innerHTML = `<span class="text-emerald-400 font-bold">Update Available: ${data.latest_version}</span>`;
+                    }
+                    if (isManual) {
+                        if (confirm(`New version available: ${data.latest_version}\n\n${data.message}\n\nWould you like to pull the update now?`)) {
+                            await handleAppUpdateApply(data);
+                        }
+                    }
+                } else {
+                    if (btn) {
+                        icon.classList.remove('animate-spin');
+                        icon.innerText = '✅';
+                        text.innerText = 'Up to Date (v2.1.0)';
+                        setTimeout(() => {
+                            if (icon) icon.innerText = '🔄';
+                            if (text) text.innerText = 'Check for Updates';
+                            if (btn) btn.disabled = false;
+                        }, 4000);
+                    }
+                    if (statusEl) statusEl.innerText = `App is up to date (${data.message})`;
+                    if (isManual) {
+                        alert(data.message || "You are running the latest version!");
+                    }
+                }
+            } catch (err) {
+                if (btn) {
+                    icon.classList.remove('animate-spin');
+                    icon.innerText = '⚠️';
+                    text.innerText = 'Check Failed';
+                    btn.disabled = false;
+                }
+                if (statusEl) statusEl.innerText = `Update check failed: ${err.message}`;
+                if (isManual) alert("Update check failed: " + err.message);
+            }
+        }
+
+        async function handleAppUpdateApply(updateData) {
+            const btn = document.getElementById('btnCheckUpdate');
+            const text = document.getElementById('updateBtnText');
+            if (btn) {
+                btn.disabled = true;
+                text.innerText = 'Pulling Update...';
+            }
+
+            try {
+                const res = await fetch('/api/update/apply', { method: 'POST' });
+                const result = await res.json();
+                if (result.success) {
+                    alert(result.message || "Update successfully applied! The app will now reload.");
+                    window.location.reload();
+                } else {
+                    alert("Update failed: " + (result.error || "Unknown error"));
+                    if (result.release_url) {
+                        window.open(result.release_url, '_blank');
+                    }
+                }
+            } catch (err) {
+                alert("Error applying update: " + err.message);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         }
 
         window.onload = initApp;

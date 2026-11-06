@@ -11,7 +11,9 @@ from pydantic import BaseModel
 from backend.file_manager import FileManager, slugify_item_name
 from backend.gemini_service import generate_gemini_listing_pack
 from backend.packaging import solve_3d_box_fit
-from backend.slicer_engine import analyze_slicer_upload
+from backend.slicer_engine import analyze_slicer_upload, analyze_multiple_slicer_uploads
+from backend.etsy_service import fetch_etsy_listing_images, download_image_bytes
+from backend.updater_service import check_for_updates, apply_update
 
 
 def _resolve_frontend_dir() -> Path:
@@ -59,6 +61,17 @@ class SaveItemRequest(BaseModel):
     item: Dict[str, Any]
     index: int = -1
     staged_gcode_filename: Optional[str] = None
+    staged_gcode_filenames: Optional[List[str]] = None
+
+
+class EtsyFetchRequest(BaseModel):
+    url: Optional[str] = None
+    raw_html: Optional[str] = None
+
+
+class EtsyIngestRequest(BaseModel):
+    slug: str
+    image_urls: List[str]
 
 
 class CatalogSyncRequest(BaseModel):
@@ -152,6 +165,13 @@ async def save_single_item(req: SaveItemRequest):
     state = file_manager.get_catalog_state()
     catalog = state["catalog"]
     item = req.item
+
+    # Consolidate staged gcode filenames if multiple provided
+    if req.staged_gcode_filenames:
+        existing_staged = item.setdefault("stagedGcodeFiles", [])
+        for fn in req.staged_gcode_filenames:
+            if fn and fn not in existing_staged:
+                existing_staged.append(fn)
 
     if 0 <= req.index < len(catalog):
         existing = catalog[req.index]
@@ -333,6 +353,110 @@ async def parse_slicer_file(
     return analysis
 
 
+@app.post("/api/slicer/parse-multiple")
+async def parse_multiple_slicer_files(
+    files: List[UploadFile] = File(...),
+    item_name: str = Form(""),
+):
+    """
+    Parses multiple dropped/selected .gcode or .3mf files (multi-part/multi-plate prints):
+    1. Extracts individual filament grams, print times, bed temperatures, and bounding boxes.
+    2. Sums total filament weight (g) and total print hours.
+    3. Retains highest bed temperature.
+    4. Calculates largest individual part dimensions for packaging fit.
+    5. Saves all uploaded files into staging and the target product's gcode folder.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="No slicer files provided")
+
+    file_tuples = []
+    for uf in files:
+        content = await uf.read()
+        fname = uf.filename or "upload.gcode"
+        if content:
+            file_tuples.append((fname, content))
+
+    if not file_tuples:
+        raise HTTPException(status_code=400, detail="Uploaded files were empty")
+
+    settings = file_manager.get_settings()
+    custom_boxes = settings.get("stock_boxes")
+
+    analysis = analyze_multiple_slicer_uploads(
+        files=file_tuples,
+        custom_boxes=custom_boxes,
+    )
+
+    target_name = item_name.strip()
+    if not target_name or target_name == "Gothic Skull Dice Tower":
+        target_name = analysis.get("suggested_title") or "Multi-Part 3D Print"
+
+    saved_staged_filenames = []
+    saved_paths = []
+    for fname, fbytes in file_tuples:
+        sp = file_manager.save_slicer_file(
+            file_bytes=fbytes,
+            filename=fname,
+            item_name_or_slug=target_name,
+        )
+        saved_staged_filenames.append(sp["staged_filename"])
+        saved_paths.append(sp)
+
+    analysis["saved_gcode_files"] = saved_paths
+    analysis["staged_filenames"] = saved_staged_filenames
+    analysis["saved_gcode"] = saved_paths[0] if saved_paths else {}
+    return analysis
+
+
+@app.post("/api/etsy/fetch-photos")
+async def fetch_etsy_photos(req: EtsyFetchRequest):
+    """
+    Fetches product photos and listing info from an Etsy listing URL or pasted HTML.
+    Bypasses anti-bot by accepting pasted HTML or extracts from public CDN images.
+    """
+    result = fetch_etsy_listing_images(listing_url=req.url or "", raw_html=req.raw_html)
+    return result
+
+
+@app.post("/api/etsy/ingest-photos")
+async def ingest_etsy_photos(req: EtsyIngestRequest):
+    """
+    Downloads selected photos from Etsy CDN (i.etsystatic.com) and saves them
+    directly into <root>/products/<slug>/photos/ renamed sequentially (01_hero.jpg, etc.).
+    """
+    clean_slug = slugify_item_name(req.slug)
+    if not req.image_urls:
+        raise HTTPException(status_code=400, detail="No image URLs provided")
+
+    files_payload: List[Tuple[str, bytes]] = []
+    for idx, img_url in enumerate(req.image_urls, start=1):
+        img_bytes = download_image_bytes(img_url)
+        if img_bytes:
+            # Determine extension
+            ext = ".jpg"
+            if ".png" in img_url.lower():
+                ext = ".png"
+            elif ".webp" in img_url.lower():
+                ext = ".webp"
+            files_payload.append((f"etsy_photo_{idx}{ext}", img_bytes))
+
+    if not files_payload:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not download any images from the provided URLs. Check network connection or URLs.",
+        )
+
+    photo_urls = file_manager.ingest_product_photos(clean_slug, files_payload)
+    state = file_manager.get_catalog_state()
+    return {
+        "slug": clean_slug,
+        "photos": photo_urls,
+        "thumbnail": photo_urls[0] if photo_urls else None,
+        "downloaded_count": len(files_payload),
+        "catalog": state["catalog"],
+    }
+
+
 @app.post("/api/packaging/solve")
 async def solve_packaging_fit(req: BoxFitRequest):
     settings = file_manager.get_settings()
@@ -385,4 +509,16 @@ async def generate_listing_pack(req: ListingGenerateRequest):
         settings=settings,
         force_static=req.force_static,
     )
+
+
+@app.get("/api/update/check")
+async def api_check_update():
+    """Checks whether a newer release or git commit is available."""
+    return check_for_updates()
+
+
+@app.post("/api/update/apply")
+async def api_apply_update():
+    """Pulls the latest code/binary update automatically."""
+    return apply_update()
 

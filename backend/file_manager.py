@@ -403,13 +403,18 @@ class FileManager:
         gcode_dir.mkdir(parents=True, exist_ok=True)
         photos_dir.mkdir(parents=True, exist_ok=True)
 
-        # If there is a staged gcode file from dropzone, move/copy it into gcode/
+        # If there are staged gcode files from dropzone, move/copy them into gcode/
+        staged_names = item.get("stagedGcodeFiles") or []
         staged_name = staged_gcode_filename or item.get("stagedGcodeFile")
-        if staged_name:
-            staged_path = STAGING_GCODE_DIR / staged_name
-            if staged_path.exists():
-                dest_path = gcode_dir / staged_name
-                shutil.copy2(staged_path, dest_path)
+        if staged_name and staged_name not in staged_names:
+            staged_names.append(staged_name)
+
+        for s_name in staged_names:
+            if s_name:
+                staged_path = STAGING_GCODE_DIR / s_name
+                if staged_path.exists():
+                    dest_path = gcode_dir / s_name
+                    shutil.copy2(staged_path, dest_path)
 
         self._enrich_item_disk_assets(item)
 

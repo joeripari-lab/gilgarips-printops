@@ -409,6 +409,128 @@ def _extract_3mf_mesh_bbox_mm(
     return None
 
 
+def analyze_multiple_slicer_uploads(
+    files: List[Tuple[str, bytes]],
+    custom_boxes: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """
+    Parses multiple .gcode or .3mf files for multi-part/multi-plate prints:
+    1. Parses each file individually.
+    2. Sums filament grams and print hours.
+    3. Finds highest bed temperature.
+    4. Calculates largest individual part dimensions (X, Y, Z) for packaging fit.
+    5. Solves 3D rotational box fit based on largest footprint + clearance.
+    """
+    if not files:
+        raise ValueError("No files provided for multi-slicer analysis")
+
+    if len(files) == 1:
+        fname, fbytes = files[0]
+        single = analyze_slicer_upload(fbytes, fname, custom_boxes)
+        single["file_count"] = 1
+        single["individual_files"] = [{
+            "filename": fname,
+            "filament_grams": single["filament_grams"],
+            "print_hours": single["print_hours"],
+            "bed_temp_c": single["bed_temp_c"],
+            "bbox_in": single["bbox_in"]
+        }]
+        return single
+
+    total_grams = 0.0
+    total_hours = 0.0
+    max_bed_temp = 60
+    detected_materials = []
+    individual_files = []
+    
+    max_x_in = 0.0
+    max_y_in = 0.0
+    max_z_in = 0.0
+
+    suggested_title = None
+
+    for fname, fbytes in files:
+        lower_name = fname.lower()
+        if lower_name.endswith(".3mf"):
+            meta = parse_3mf_bytes(fbytes, fname)
+        else:
+            text = fbytes.decode("utf-8", errors="ignore")
+            meta = parse_gcode_text(text, fname)
+
+        total_grams += meta.get("filament_grams", 0.0)
+        total_hours += meta.get("print_hours", 0.0)
+        bed_t = meta.get("bed_temp_c", 60)
+        if bed_t > max_bed_temp:
+            max_bed_temp = bed_t
+        mat = meta.get("material_type")
+        if mat and mat not in detected_materials:
+            detected_materials.append(mat)
+
+        bin_dims = meta.get("bbox_in", {"x": 5.0, "y": 4.0, "z": 2.0})
+        if bin_dims["x"] > max_x_in:
+            max_x_in = bin_dims["x"]
+        if bin_dims["y"] > max_y_in:
+            max_y_in = bin_dims["y"]
+        if bin_dims["z"] > max_z_in:
+            max_z_in = bin_dims["z"]
+
+        if not suggested_title:
+            # Try to strip plate suffix like '_Plate_1', '_Part1', etc.
+            base_title = meta.get("suggested_title") or fname
+            cleaned = re.sub(r"(?i)[_\s-]+plate[_\s-]*\d+.*$", "", base_title).strip()
+            cleaned = re.sub(r"(?i)[_\s-]+part[_\s-]*\d+.*$", "", cleaned).strip()
+            cleaned = re.sub(r"(?i)[_\s-]+p\d+.*$", "", cleaned).strip()
+            if cleaned:
+                suggested_title = cleaned
+
+        individual_files.append({
+            "filename": fname,
+            "filament_grams": meta.get("filament_grams", 0.0),
+            "print_hours": meta.get("print_hours", 0.0),
+            "bed_temp_c": bed_t,
+            "bbox_in": bin_dims
+        })
+
+    total_grams = round(total_grams, 1)
+    total_hours = round(total_hours, 2)
+    max_x_in = round(max_x_in, 2)
+    max_y_in = round(max_y_in, 2)
+    max_z_in = round(max_z_in, 2)
+
+    estimated_package_oz = (
+        math.ceil((total_grams * 0.035274) + 4) if total_grams > 0 else 12
+    )
+
+    combined_bbox_in = {"x": max_x_in, "y": max_y_in, "z": max_z_in}
+    packaging_fit = solve_3d_box_fit(
+        obj_x_in=max_x_in,
+        obj_y_in=max_y_in,
+        obj_z_in=max_z_in,
+        clearance_padding_in=2.0,
+        boxes=custom_boxes,
+    )
+
+    return {
+        "filename": f"{len(files)} files combined",
+        "file_count": len(files),
+        "suggested_title": suggested_title or "Multi-Part 3D Print",
+        "filament_grams": total_grams,
+        "print_hours": total_hours,
+        "bed_temp_c": max_bed_temp,
+        "material_type": ", ".join(detected_materials) if detected_materials else None,
+        "estimated_package_oz": estimated_package_oz,
+        "bbox_in": combined_bbox_in,
+        "bbox_mm": {
+            "x_mm": round(max_x_in * MM_PER_INCH, 2),
+            "y_mm": round(max_y_in * MM_PER_INCH, 2),
+            "z_mm": round(max_z_in * MM_PER_INCH, 2),
+            "source": "multi_file_largest_part",
+        },
+        "packaging_fit": packaging_fit,
+        "individual_files": individual_files,
+    }
+
+
 def analyze_slicer_upload(
     file_bytes: bytes,
     filename: str,
