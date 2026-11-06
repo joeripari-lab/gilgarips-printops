@@ -19,6 +19,8 @@ hiddenimports = (
         "backend.packaging",
         "backend.slicer_engine",
         "backend.gemini_service",
+        "backend.etsy_service",
+        "backend.updater_service",
     ]
 )
 

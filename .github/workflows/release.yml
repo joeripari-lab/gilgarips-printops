@@ -1,0 +1,66 @@
+name: Build & Release Standalone Windows Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Single-File Standalone Executable
+        run: |
+          python -m PyInstaller --noconfirm --clean GilgaripsPrintOps_SingleFile.spec
+
+      - name: Verify Executable Built
+        run: |
+          if (Test-Path "dist\GilgaripsPrintOps.exe") {
+            Write-Host "GilgaripsPrintOps.exe successfully created!"
+            Get-Item "dist\GilgaripsPrintOps.exe" | Select-Object Name, Length
+          } else {
+            Write-Error "dist\GilgaripsPrintOps.exe was not found"
+            exit 1
+          }
+
+      - name: Create GitHub Release and Upload Binary Asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/GilgaripsPrintOps.exe
+          tag_name: ${{ github.ref_name }}
+          name: Gilgarips PrintOps ${{ github.ref_name }}
+          body: |
+            ### Gilgarips PrintOps Desktop Application
+            
+            **What's New in this Release:**
+            - 🧩 **Multi-G-Code & Multi-Plate Print Parsing**: Support for multi-plate 3D prints, summing grams/hours, finding max part footprint for box fitting, and plate breakdown table.
+            - 🌐 **Etsy Listing Photo Ingestion**: Pull high-res listing images directly from an Etsy URL or pasted source into product folders.
+            - 🔄 **In-App Auto-Updater**: Header and Admin Center update checks to pull updates automatically.
+            
+            **Installation:**
+            Download `GilgaripsPrintOps.exe` below and run directly on Windows.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

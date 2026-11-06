@@ -40,7 +40,7 @@ def _resolve_assets_dir() -> Path:
 
 app = FastAPI(
     title="Gilgarips PrintOps Desktop API",
-    version="2.1.0",
+    version="2.2.0",
     description="Local print-farm pricing, 3D slicer & spatial box solver, local Google Drive sync, and Gemini listing engine.",
 )
 
