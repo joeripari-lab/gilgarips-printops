@@ -7,7 +7,7 @@ import urllib.request
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-APP_VERSION = "2.2.0"
+APP_VERSION = "2.2.1"
 GITHUB_REPO = "joeripari-lab/gilgarips-printops"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 USER_AGENT = "GilgaripsPrintOps-Updater"

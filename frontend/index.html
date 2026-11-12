@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,6 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
+
 <body class="bg-slate-950 text-slate-100 min-h-screen p-3 sm:p-5 font-sans">
 
     <div class="w-full space-y-6">
@@ -16,45 +18,62 @@
         <header class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div class="flex items-center gap-3.5">
-                    <img src="/assets/logo.png" alt="Gilgarips PrintOps Logo" class="w-12 h-12 rounded-xl shadow-lg border border-slate-700/80 shrink-0">
+                    <img src="/assets/logo.png" alt="Gilgarips PrintOps Logo"
+                        class="w-12 h-12 rounded-xl shadow-lg border border-slate-700/80 shrink-0">
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                            Gilgarips PrintOps <span class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.2.0 Desktop</span>
+                            Gilgarips PrintOps <span
+                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.2.1
+                                Desktop</span>
                         </h1>
-                        <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver, local Google Drive sync, and Gemini AI listing packs.</p>
+                        <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver,
+                            local Google Drive sync, and Gemini AI listing packs.</p>
                     </div>
                 </div>
-                
+
                 <div class="flex flex-wrap items-center gap-2.5">
-                    <button id="btnCheckUpdate" onclick="handleAppUpdateCheck(false)" class="bg-indigo-950/70 hover:bg-indigo-900/80 text-indigo-300 px-3.5 py-2 rounded-xl text-xs font-semibold border border-indigo-700/60 transition flex items-center gap-1.5 shadow">
+                    <button id="btnCheckUpdate" onclick="handleAppUpdateCheck(false)"
+                        class="bg-indigo-950/70 hover:bg-indigo-900/80 text-indigo-300 px-3.5 py-2 rounded-xl text-xs font-semibold border border-indigo-700/60 transition flex items-center gap-1.5 shadow">
                         <span id="updateIcon">🔄</span> <span id="updateBtnText">Check for Updates</span>
                     </button>
 
-                    <button onclick="openAdminModal()" class="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 px-3.5 py-2 rounded-xl text-xs font-semibold border border-amber-500/40 transition flex items-center gap-1.5 shadow">
+                    <button onclick="openAdminModal()"
+                        class="bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 px-3.5 py-2 rounded-xl text-xs font-semibold border border-amber-500/40 transition flex items-center gap-1.5 shadow">
                         <span>⚙️</span> Admin Center
                     </button>
 
-                    <label class="flex items-center gap-2 cursor-pointer bg-slate-950/70 border border-slate-800 px-3 py-2 rounded-xl text-xs text-slate-300">
-                        <input type="checkbox" id="autoDownloadToggle" onchange="toggleAutoDownload(this.checked)" class="w-3.5 h-3.5 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
+                    <label
+                        class="flex items-center gap-2 cursor-pointer bg-slate-950/70 border border-slate-800 px-3 py-2 rounded-xl text-xs text-slate-300">
+                        <input type="checkbox" id="autoDownloadToggle" onchange="toggleAutoDownload(this.checked)"
+                            class="w-3.5 h-3.5 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0">
                         <span>Auto-Download JSON</span>
                     </label>
 
-                    <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-slate-700 transition" title="Import active listings catalog">
+                    <label
+                        class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-slate-700 transition"
+                        title="Import active listings catalog">
                         📂 Import Listings CSV
-                        <input type="file" id="etsyCsvInput" accept=".csv" class="hidden" onchange="handleEtsyCatalogImport(event)">
+                        <input type="file" id="etsyCsvInput" accept=".csv" class="hidden"
+                            onchange="handleEtsyCatalogImport(event)">
                     </label>
 
-                    <label class="bg-indigo-950/70 hover:bg-indigo-900/80 text-indigo-300 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-indigo-800/60 transition shadow-lg" title="Auto-populate YTD sales counts from one or more Etsy statements">
+                    <label
+                        class="bg-indigo-950/70 hover:bg-indigo-900/80 text-indigo-300 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-indigo-800/60 transition shadow-lg"
+                        title="Auto-populate YTD sales counts from one or more Etsy statements">
                         📈 Import Etsy Sales CSV(s)
-                        <input type="file" id="etsySalesInput" accept=".csv" multiple class="hidden" onchange="handleEtsySalesImport(event)">
+                        <input type="file" id="etsySalesInput" accept=".csv" multiple class="hidden"
+                            onchange="handleEtsySalesImport(event)">
                     </label>
 
-                    <label class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-slate-700 transition">
+                    <label
+                        class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer border border-slate-700 transition">
                         📥 Import Backup JSON
-                        <input type="file" id="backupJsonInput" accept=".json" class="hidden" onchange="importBackupData(event)">
+                        <input type="file" id="backupJsonInput" accept=".json" class="hidden"
+                            onchange="importBackupData(event)">
                     </label>
 
-                    <button onclick="exportData()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-lg transition">
+                    <button onclick="exportData()"
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl text-xs font-semibold shadow-lg transition">
                         💾 Save Backup JSON
                     </button>
                 </div>
@@ -62,25 +81,31 @@
 
             <!-- Storage Directory Bar & Uploaded Months Indicator Grid -->
             <div class="border-t border-slate-800/80 pt-4 flex flex-col gap-3">
-                <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-950/80 border border-slate-800/90 px-3.5 py-2 rounded-xl text-xs">
+                <div
+                    class="flex flex-wrap items-center justify-between gap-2 bg-slate-950/80 border border-slate-800/90 px-3.5 py-2 rounded-xl text-xs">
                     <div class="flex items-center gap-2 overflow-hidden">
                         <span class="text-emerald-400 font-semibold shrink-0">🟢 Local Storage Root:</span>
                         <code id="headerStorageRoot" class="text-slate-300 font-mono truncate">Loading...</code>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        <button onclick="openStorageFolder()" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg border border-slate-700 transition">📂 Open in Explorer</button>
-                        <button onclick="openAdminModal()" class="text-[11px] text-indigo-400 hover:text-indigo-300 transition">Change Path</button>
+                        <button onclick="openStorageFolder()"
+                            class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg border border-slate-700 transition">📂
+                            Open in Explorer</button>
+                        <button onclick="openAdminModal()"
+                            class="text-[11px] text-indigo-400 hover:text-indigo-300 transition">Change Path</button>
                     </div>
                 </div>
 
                 <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div class="flex items-center gap-2">
-                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Etsy Statement Uploads:</span>
+                        <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Etsy Statement
+                            Uploads:</span>
                         <span class="text-[11px] text-slate-500">(Click to toggle manually)</span>
                     </div>
                     <div class="grid grid-cols-6 sm:grid-cols-12 gap-1.5 flex-1 max-w-3xl" id="monthsGrid"></div>
                     <div>
-                        <button onclick="resetUploadedMonths()" class="text-[11px] text-slate-500 hover:text-slate-300 transition">Clear All</button>
+                        <button onclick="resetUploadedMonths()"
+                            class="text-[11px] text-slate-500 hover:text-slate-300 transition">Clear All</button>
                     </div>
                 </div>
             </div>
@@ -88,64 +113,87 @@
 
         <!-- Main Layout -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
+
             <!-- Left Column: Estimator & Slicer Ingestion -->
             <div class="lg:col-span-1 space-y-6">
-                
+
                 <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl space-y-4">
                     <div class="flex justify-between items-center border-b border-slate-800 pb-2">
                         <h2 class="text-lg font-semibold text-indigo-300" id="formHeader">Item & Print Estimator</h2>
-                        <button id="cancelEditBtn" onclick="resetForm()" class="hidden text-xs text-rose-400 hover:text-rose-300 border border-rose-900/40 bg-rose-950/20 px-2 py-1 rounded">Cancel Edit</button>
+                        <button id="cancelEditBtn" onclick="resetForm()"
+                            class="hidden text-xs text-rose-400 hover:text-rose-300 border border-rose-900/40 bg-rose-950/20 px-2 py-1 rounded">Cancel
+                            Edit</button>
                     </div>
 
                     <!-- Drag and Drop Slicer Dropzone -->
-                    <div id="dropzone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleFileDrop(event)" class="border-2 border-dashed border-indigo-500/40 hover:border-indigo-400 bg-indigo-950/20 hover:bg-indigo-950/40 rounded-xl p-3.5 text-center transition cursor-pointer">
-                        <input type="file" id="slicerFileInput" accept=".gcode,.3mf" multiple class="hidden" onchange="handleSlicerFiles(this.files)">
+                    <div id="dropzone" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)"
+                        ondrop="handleFileDrop(event)"
+                        class="border-2 border-dashed border-indigo-500/40 hover:border-indigo-400 bg-indigo-950/20 hover:bg-indigo-950/40 rounded-xl p-3.5 text-center transition cursor-pointer">
+                        <input type="file" id="slicerFileInput" accept=".gcode,.3mf" multiple class="hidden"
+                            onchange="handleSlicerFiles(this.files)">
                         <label for="slicerFileInput" class="cursor-pointer block">
                             <span class="text-xl">🖨️</span>
-                            <p class="text-xs font-semibold text-indigo-300 mt-1">Drop G-Code or .3MF (Single or Multi-Plate)</p>
-                            <p class="text-[10px] text-slate-400">Select or drop multiple files for multi-part prints • Sums grams & hours, finds max footprint box fit</p>
+                            <p class="text-xs font-semibold text-indigo-300 mt-1">Drop G-Code or .3MF (Single or
+                                Multi-Plate)</p>
+                            <p class="text-[10px] text-slate-400">Select or drop multiple files for multi-part prints •
+                                Sums grams & hours, finds max footprint box fit</p>
                         </label>
                     </div>
 
                     <!-- Multi-Plate Breakdown Pill List -->
-                    <div id="multiPlateBreakdown" class="hidden bg-slate-950/80 border border-indigo-900/60 rounded-xl p-2.5 text-xs space-y-1.5">
+                    <div id="multiPlateBreakdown"
+                        class="hidden bg-slate-950/80 border border-indigo-900/60 rounded-xl p-2.5 text-xs space-y-1.5">
                         <div class="flex justify-between items-center text-[11px] font-semibold text-indigo-300">
                             <span id="multiPlateTitle">🧩 Combined Multi-Part Prints</span>
-                            <span id="multiPlateFileCount" class="font-mono bg-indigo-950 px-1.5 py-0.5 rounded border border-indigo-800 text-[10px]">2 plates</span>
+                            <span id="multiPlateFileCount"
+                                class="font-mono bg-indigo-950 px-1.5 py-0.5 rounded border border-indigo-800 text-[10px]">2
+                                plates</span>
                         </div>
-                        <div id="multiPlateList" class="space-y-1 max-h-28 overflow-y-auto text-[10px] font-mono text-slate-400 pr-1"></div>
+                        <div id="multiPlateList"
+                            class="space-y-1 max-h-28 overflow-y-auto text-[10px] font-mono text-slate-400 pr-1"></div>
                     </div>
 
                     <!-- 3D Spatial Packaging Fit Feedback Banner -->
                     <div id="spatialFitBanner" class="hidden rounded-xl p-3 border text-xs space-y-1.5"></div>
-                    
+
                     <div>
                         <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Item Title / Name</label>
-                        <input type="text" id="itemName" value="Gothic Skull Dice Tower" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                        <input type="text" id="itemName" value="Gothic Skull Dice Tower"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                            oninput="calculateAll()">
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Sale Price ($)</label>
-                            <input type="number" id="salePrice" value="38.00" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Sale Price
+                                ($)</label>
+                            <input type="number" id="salePrice" value="38.00" step="0.01"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                oninput="calculateAll()">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Base / Sourcing Cost ($)</label>
-                            <input type="number" id="itemCost" value="0.00" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                            <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Base / Sourcing Cost
+                                ($)</label>
+                            <input type="number" id="itemCost" value="0.00" step="0.01"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                oninput="calculateAll()">
                         </div>
                     </div>
 
                     <!-- Shipping & Box Presets -->
                     <div class="border-t border-slate-800 pt-3 space-y-3">
                         <div class="flex justify-between items-center">
-                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Packaging & 3D Spatial DIM</h3>
-                            <span id="dimStatusBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">Regular</span>
+                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Packaging & 3D
+                                Spatial DIM</h3>
+                            <span id="dimStatusBadge"
+                                class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">Regular</span>
                         </div>
 
                         <div>
-                            <label class="block text-[11px] font-medium text-slate-400 mb-1">Stock Box / Carrier Preset</label>
-                            <select id="boxPresetSelect" onchange="applyBoxPreset(this.value)" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                            <label class="block text-[11px] font-medium text-slate-400 mb-1">Stock Box / Carrier
+                                Preset</label>
+                            <select id="boxPresetSelect" onchange="applyBoxPreset(this.value)"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                                 <option value="custom">Custom Dimensions</option>
                                 <optgroup label="UPS Blank Security Suite">
                                     <option value="ups_small">UPS Blank Security - Small: 9 × 6 × 3 in</option>
@@ -155,63 +203,90 @@
                                     <option value="usps_box4_square">USPS Box 4 Square (O-BOX4): 7 × 7 × 6 in</option>
                                     <option value="usps_o1092">USPS Box 4 (O-1092): 13.375 × 12.125 × 2.75 in</option>
                                     <option value="usps_o1097">USPS Box 7 (O-1097): 14 × 11.25 × 2.25 in</option>
-                                    <option value="usps_shoebox">USPS Priority Shoe Box: 14.375 × 7.5 × 5.125 in</option>
+                                    <option value="usps_shoebox">USPS Priority Shoe Box: 14.375 × 7.5 × 5.125 in
+                                    </option>
                                     <option value="usps_mfrb1">USPS Medium Flat Rate 1: 11 × 8.5 × 5.5 in</option>
-                                    <option value="usps_mfrb2">USPS Medium Flat Rate 2: 13.625 × 11.875 × 3.375 in</option>
-                                    <option value="usps_lfrb">USPS Large Flat Rate Box: 12 × 12 × 8 in (DIM Risk)</option>
+                                    <option value="usps_mfrb2">USPS Medium Flat Rate 2: 13.625 × 11.875 × 3.375 in
+                                    </option>
+                                    <option value="usps_lfrb">USPS Large Flat Rate Box: 12 × 12 × 8 in (DIM Risk)
+                                    </option>
                                 </optgroup>
                                 <optgroup label="Standard Corrugated Presets">
                                     <option value="7x5x4">Box #1: 7 × 5 × 4 in (Small Accessories)</option>
                                     <option value="9x6x4" selected>Box #2: 9 × 6 × 4 in (Dice Towers / Trays)</option>
                                     <option value="12x9x4">Box #3: 12 × 9 × 4 in (Medium Decor / Plaques)</option>
-                                    <option value="12x12x8">Box #4: 12 × 12 × 8 in (Large Gothic Shelves - DIM Risk)</option>
+                                    <option value="12x12x8">Box #4: 12 × 12 × 8 in (Large Gothic Shelves - DIM Risk)
+                                    </option>
                                 </optgroup>
                             </select>
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Actual Weight (oz)</label>
-                                <input type="number" id="packageWeight" value="14" step="1" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Actual Weight
+                                    (oz)</label>
+                                <input type="number" id="packageWeight" value="14" step="1"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    oninput="calculateAll()">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Shipping Charged ($)</label>
-                                <input type="number" id="shippingCharged" value="6.50" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Shipping Charged
+                                    ($)</label>
+                                <input type="number" id="shippingCharged" value="6.50" step="0.01"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    oninput="calculateAll()">
                             </div>
                         </div>
 
                         <div class="grid grid-cols-3 gap-2">
                             <div>
                                 <label class="block text-[11px] font-medium text-slate-400 mb-1">Box L (in)</label>
-                                <input type="number" id="boxLength" value="9" step="0.125" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                                <input type="number" id="boxLength" value="9" step="0.125"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                                    oninput="calculateAll()">
                             </div>
                             <div>
                                 <label class="block text-[11px] font-medium text-slate-400 mb-1">Box W (in)</label>
-                                <input type="number" id="boxWidth" value="6" step="0.125" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                                <input type="number" id="boxWidth" value="6" step="0.125"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                                    oninput="calculateAll()">
                             </div>
                             <div>
                                 <label class="block text-[11px] font-medium text-slate-400 mb-1">Box H (in)</label>
-                                <input type="number" id="boxHeight" value="4" step="0.125" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                                <input type="number" id="boxHeight" value="4" step="0.125"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                                    oninput="calculateAll()">
                             </div>
                         </div>
 
                         <!-- Interactive Printable Object Bounding Box -->
                         <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-2.5 space-y-2">
                             <div class="flex justify-between items-center">
-                                <span class="text-[10px] font-semibold uppercase text-slate-400">Part Bounding Box (in) + 2" Pad</span>
-                                <button type="button" onclick="testManual3DFit()" class="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold">🔄 Solve 3D Fit</button>
+                                <span class="text-[10px] font-semibold uppercase text-slate-400">Part Bounding Box (in)
+                                    + 2" Pad</span>
+                                <button type="button" onclick="testManual3DFit()"
+                                    class="text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold">🔄 Solve 3D
+                                    Fit</button>
                             </div>
                             <div class="grid grid-cols-3 gap-2">
-                                <input type="number" id="objX" placeholder="Obj X (in)" step="0.1" class="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200" title="Printable Object X (inches)">
-                                <input type="number" id="objY" placeholder="Obj Y (in)" step="0.1" class="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200" title="Printable Object Y (inches)">
-                                <input type="number" id="objZ" placeholder="Obj Z (in)" step="0.1" class="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200" title="Printable Object Z (inches)">
+                                <input type="number" id="objX" placeholder="Obj X (in)" step="0.1"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200"
+                                    title="Printable Object X (inches)">
+                                <input type="number" id="objY" placeholder="Obj Y (in)" step="0.1"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200"
+                                    title="Printable Object Y (inches)">
+                                <input type="number" id="objZ" placeholder="Obj Z (in)" step="0.1"
+                                    class="w-full bg-slate-900 border border-slate-800 rounded px-2 py-1 text-[11px] text-slate-200"
+                                    title="Printable Object Z (inches)">
                             </div>
                         </div>
 
                         <div>
                             <label class="flex items-center gap-2 cursor-pointer pt-1">
-                                <input type="checkbox" id="freeShippingToggle" onchange="calculateAll()" class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-0">
-                                <span class="text-xs font-semibold text-slate-300">Free Shipping: <span id="freeShippingStatusLabel" class="text-amber-400 font-bold">No</span></span>
+                                <input type="checkbox" id="freeShippingToggle" onchange="calculateAll()"
+                                    class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-0">
+                                <span class="text-xs font-semibold text-slate-300">Free Shipping: <span
+                                        id="freeShippingStatusLabel" class="text-amber-400 font-bold">No</span></span>
                             </label>
                         </div>
                     </div>
@@ -219,39 +294,59 @@
                     <!-- 3D Print Parameters -->
                     <div class="border-t border-slate-800 pt-3 space-y-3">
                         <div class="flex justify-between items-center">
-                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">3D Printing Specs</h3>
+                            <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider">3D Printing Specs
+                            </h3>
                             <div class="flex items-center gap-1.5">
-                                <span id="bedTempBadge" class="text-[10px] font-mono text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/60">Bed: 60°C</span>
-                                <span id="farmYieldBadge" class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">Yield: --</span>
-                            </div>
-                        </div>
-                        
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Filament (g)</label>
-                                <input type="number" id="filamentGrams" value="165" step="1" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Filament ($/kg)</label>
-                                <input type="number" id="filamentCostPerKg" value="20.00" step="0.50" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                                <span id="bedTempBadge"
+                                    class="text-[10px] font-mono text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/60">Bed:
+                                    60°C</span>
+                                <span id="farmYieldBadge"
+                                    class="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">Yield:
+                                    --</span>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Print Time (Hrs)</label>
-                                <input type="number" id="printHours" value="6.5" step="0.25" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Filament
+                                    (g)</label>
+                                <input type="number" id="filamentGrams" value="165" step="1"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    oninput="calculateAll()">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">DTE Power ($/kWh)</label>
-                                <input type="number" id="powerRate" value="0.21" step="0.01" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Filament
+                                    ($/kg)</label>
+                                <input type="number" id="filamentCostPerKg" value="20.00" step="0.50"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    oninput="calculateAll()">
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Design Source</label>
-                                <select id="patreonSource" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" onchange="calculateAll()">
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Print Time
+                                    (Hrs)</label>
+                                <input type="number" id="printHours" value="6.5" step="0.25"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    oninput="calculateAll()">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">DTE Power
+                                    ($/kWh)</label>
+                                <input type="number" id="powerRate" value="0.21" step="0.01"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    oninput="calculateAll()">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Design
+                                    Source</label>
+                                <select id="patreonSource"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    onchange="calculateAll()">
                                     <option value="Gilgarips 3D">Gilgarips 3D (In-House - $0)</option>
                                     <option value="Fates End">Fates End ($15)</option>
                                     <option value="Lightspeed">Lightspeed ($9)</option>
@@ -261,20 +356,27 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Supplies/Hardware ($)</label>
-                                <input type="number" id="suppliesCost" value="1.25" step="0.25" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" oninput="calculateAll()">
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Supplies/Hardware
+                                    ($)</label>
+                                <input type="number" id="suppliesCost" value="1.25" step="0.25"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
+                                    oninput="calculateAll()">
                             </div>
                         </div>
 
                         <!-- Buffer Stock Tracking & Material -->
                         <div class="grid grid-cols-2 gap-3 pt-1">
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Physical Stock Buffer</label>
-                                <input type="number" id="stockOnHand" value="2" min="0" step="1" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Physical Stock
+                                    Buffer</label>
+                                <input type="number" id="stockOnHand" value="2" min="0" step="1"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
                             </div>
                             <div>
-                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Material Type</label>
-                                <select id="materialType" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                                <label class="block text-xs font-medium text-slate-400 uppercase mb-1">Material
+                                    Type</label>
+                                <select id="materialType"
+                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
                                     <option value="PLA Pro / Tough PLA">PLA Pro / Tough PLA</option>
                                     <option value="Matte PLA">Matte PLA</option>
                                     <option value="PETG">PETG</option>
@@ -286,13 +388,20 @@
                         <!-- Product Photo Dropzone (Auto-saves as 01_hero.jpg, 02_detail.jpg) -->
                         <div class="border-t border-slate-800 pt-3 space-y-2">
                             <div class="flex justify-between items-center">
-                                <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Product Photos</span>
-                                <button type="button" onclick="openEtsyPhotoModal()" class="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-semibold hover:underline">
+                                <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Product
+                                    Photos</span>
+                                <button type="button" onclick="openEtsyPhotoModal()"
+                                    class="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 font-semibold hover:underline">
                                     <span>🌐 Pull from Etsy Link</span>
                                 </button>
                             </div>
-                            <div id="photoDropzone" ondragover="event.preventDefault(); this.classList.add('border-emerald-400')" ondragleave="this.classList.remove('border-emerald-400')" ondrop="handleFormPhotoDrop(event)" class="border border-dashed border-slate-700 hover:border-emerald-400 bg-slate-950/60 rounded-xl p-2.5 text-center transition cursor-pointer">
-                                <input type="file" id="formPhotoInput" accept="image/*" multiple class="hidden" onchange="uploadPhotosForCurrentForm(this.files)">
+                            <div id="photoDropzone"
+                                ondragover="event.preventDefault(); this.classList.add('border-emerald-400')"
+                                ondragleave="this.classList.remove('border-emerald-400')"
+                                ondrop="handleFormPhotoDrop(event)"
+                                class="border border-dashed border-slate-700 hover:border-emerald-400 bg-slate-950/60 rounded-xl p-2.5 text-center transition cursor-pointer">
+                                <input type="file" id="formPhotoInput" accept="image/*" multiple class="hidden"
+                                    onchange="uploadPhotosForCurrentForm(this.files)">
                                 <label for="formPhotoInput" class="cursor-pointer block text-xs text-slate-300">
                                     📷 Drop or Click to Upload Product Photos
                                 </label>
@@ -301,29 +410,37 @@
                         </div>
                     </div>
 
-                    <button id="saveBtn" onclick="saveCurrentItem()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl transition shadow-lg mt-2">Save Item to Catalog & Scaffold Disk</button>
+                    <button id="saveBtn" onclick="saveCurrentItem()"
+                        class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl transition shadow-lg mt-2">Save
+                        Item to Catalog & Scaffold Disk</button>
                 </div>
 
             </div>
 
             <!-- Right Column: Visual Margin Drag, Live Matrix & Fees -->
             <div class="lg:col-span-2 space-y-6">
-                
+
                 <!-- Free Shipping & DIM Alert -->
-                <div id="dimAlertCard" class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl transition space-y-3"></div>
+                <div id="dimAlertCard"
+                    class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl transition space-y-3"></div>
 
                 <!-- Live Platform Comparison Card -->
                 <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-4">
+                    <div
+                        class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-4">
                         <div>
                             <h2 class="text-xl font-bold text-white" id="activeItemDisplay">Live Margin Breakdown</h2>
-                            <p class="text-xs text-slate-400">Comparing real net margins across active channels after marketplace takes & postage outflow.</p>
+                            <p class="text-xs text-slate-400">Comparing real net margins across active channels after
+                                marketplace takes & postage outflow.</p>
                         </div>
                         <div class="flex gap-2">
-                            <div class="text-xs font-mono bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-slate-300">
-                                Unit Direct Cost: <span id="summaryTotalCost" class="text-indigo-400 font-bold">$0.00</span>
+                            <div
+                                class="text-xs font-mono bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-slate-300">
+                                Unit Direct Cost: <span id="summaryTotalCost"
+                                    class="text-indigo-400 font-bold">$0.00</span>
                             </div>
-                            <div class="text-xs font-mono bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-emerald-300">
+                            <div
+                                class="text-xs font-mono bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-emerald-300">
                                 Machine Rate: <span id="summaryMachineRate" class="font-bold">$0.00/hr</span>
                             </div>
                         </div>
@@ -334,7 +451,8 @@
 
                     <!-- Target Pricing Grid -->
                     <div class="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-3">
-                        <h3 class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                        <h3
+                            class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-2">
                             <span>🎯</span> Recommended Price Points (Etsy Net Margin Targets)
                         </h3>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs" id="targetPricingGrid"></div>
@@ -343,12 +461,15 @@
 
                 <!-- Total Platform Fees Paid Summary Card -->
                 <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-3">
+                    <div
+                        class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-3">
                         <div>
                             <h2 class="text-lg font-semibold text-indigo-300">Platform Take-Rate Totals (YTD)</h2>
-                            <p class="text-xs text-slate-400">Total transaction fees paid across active marketplaces vs Mayhem direct savings potential.</p>
+                            <p class="text-xs text-slate-400">Total transaction fees paid across active marketplaces vs
+                                Mayhem direct savings potential.</p>
                         </div>
-                        <div class="text-xs font-mono bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-rose-400 font-bold">
+                        <div
+                            class="text-xs font-mono bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800 text-rose-400 font-bold">
                             Total Leakage: <span id="grandTotalFees">$0.00</span>
                         </div>
                     </div>
@@ -358,14 +479,19 @@
 
                 <!-- Patreon & In-House Performance Tracker -->
                 <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-3">
+                    <div
+                        class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-3">
                         <div>
                             <h2 class="text-lg font-semibold text-indigo-300">Design Performance & Sub ROI</h2>
-                            <p class="text-xs text-slate-400">Total YTD units logged across platforms vs monthly subscription fee overhead.</p>
+                            <p class="text-xs text-slate-400">Total YTD units logged across platforms vs monthly
+                                subscription fee overhead.</p>
                         </div>
                         <div class="flex items-center gap-2.5">
-                            <span id="totalSubOverheadBadge" class="text-xs font-mono text-slate-400">Total Sub Overhead: $55.00/mo</span>
-                            <button onclick="openAdminModal('patreons')" class="text-[11px] bg-slate-800 hover:bg-slate-700 text-indigo-300 px-2.5 py-1 rounded-lg border border-slate-700 transition">✏️ Edit Patreons</button>
+                            <span id="totalSubOverheadBadge" class="text-xs font-mono text-slate-400">Total Sub
+                                Overhead: $55.00/mo</span>
+                            <button onclick="openAdminModal('patreons')"
+                                class="text-[11px] bg-slate-800 hover:bg-slate-700 text-indigo-300 px-2.5 py-1 rounded-lg border border-slate-700 transition">✏️
+                                Edit Patreons</button>
                         </div>
                     </div>
 
@@ -378,14 +504,17 @@
 
         <!-- Full-Width Catalog Table -->
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-3">
+            <div
+                class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-3">
                 <div class="flex items-center gap-3">
                     <h2 class="text-lg font-semibold text-indigo-300">Catalog Operations & Local Disk Assets</h2>
                     <span class="text-xs text-slate-400 font-mono" id="catalogCount">0 items</span>
                 </div>
-                
+
                 <div class="w-full sm:w-80 relative">
-                    <input type="text" id="catalogSearch" oninput="renderCatalog()" placeholder="Search Item or Design Source (min 3 chars)..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                    <input type="text" id="catalogSearch" oninput="renderCatalog()"
+                        placeholder="Search Item or Design Source (min 3 chars)..."
+                        class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
                     <span class="absolute right-3 top-2 text-xs text-slate-500">🔍</span>
                 </div>
             </div>
@@ -414,30 +543,38 @@
     </div>
 
     <!-- Hidden row photo uploader input -->
-    <input type="file" id="rowPhotoInput" accept="image/*" multiple class="hidden" onchange="handleRowPhotoSelected(event)">
+    <input type="file" id="rowPhotoInput" accept="image/*" multiple class="hidden"
+        onchange="handleRowPhotoSelected(event)">
 
     <!-- MODAL 1: 1-Click Listing Pack Modal (Native Gemini AI + Instant Fallback) -->
-    <div id="listingModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
+    <div id="listingModal"
+        class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+            class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
             <div class="flex justify-between items-start border-b border-slate-800 pb-3">
                 <div>
                     <div class="flex items-center gap-2">
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
                             <span>📦</span> 1-Click Multi-Channel Listing Pack
                         </h3>
-                        <span id="listingSourceBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">Template</span>
+                        <span id="listingSourceBadge"
+                            class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-950 text-indigo-300 border border-indigo-800">Template</span>
                     </div>
                     <p class="text-xs text-slate-400 mt-0.5" id="modalItemTitle">Item Name</p>
                 </div>
                 <div class="flex items-center gap-2">
-                    <button id="regenGeminiBtn" onclick="regenerateListingWithGemini()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold shadow flex items-center gap-1 transition">
+                    <button id="regenGeminiBtn" onclick="regenerateListingWithGemini()"
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-semibold shadow flex items-center gap-1 transition">
                         <span>✨</span> Generate with Gemini AI
                     </button>
-                    <button onclick="closeListingModal()" class="text-slate-400 hover:text-white text-lg px-1">✕</button>
+                    <button onclick="closeListingModal()"
+                        class="text-slate-400 hover:text-white text-lg px-1">✕</button>
                 </div>
             </div>
 
-            <div id="listingStatusNote" class="hidden text-[11px] bg-slate-950 border border-slate-800 text-slate-400 px-3 py-2 rounded-lg"></div>
+            <div id="listingStatusNote"
+                class="hidden text-[11px] bg-slate-950 border border-slate-800 text-slate-400 px-3 py-2 rounded-lg">
+            </div>
 
             <!-- SEO Title -->
             <div class="space-y-1">
@@ -446,8 +583,10 @@
                     <span id="titleCharCount" class="font-mono text-slate-500">0/140</span>
                 </div>
                 <div class="flex gap-2">
-                    <input type="text" id="modalTitleInput" readonly class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono">
-                    <button onclick="copyField('modalTitleInput')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0">Copy</button>
+                    <input type="text" id="modalTitleInput" readonly
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-200 font-mono">
+                    <button onclick="copyField('modalTitleInput')"
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0">Copy</button>
                 </div>
             </div>
 
@@ -458,8 +597,10 @@
                     <span id="tagsCountBadge" class="font-mono text-emerald-400 text-[10px]">13 tags ready</span>
                 </div>
                 <div class="flex gap-2">
-                    <textarea id="modalTagsInput" readonly rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono"></textarea>
-                    <button onclick="copyField('modalTagsInput')" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0">Copy</button>
+                    <textarea id="modalTagsInput" readonly rows="2"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono"></textarea>
+                    <button onclick="copyField('modalTagsInput')"
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0">Copy</button>
                 </div>
             </div>
 
@@ -470,56 +611,72 @@
                     <span class="font-mono text-slate-500 text-[10px]">Markdown specs included</span>
                 </div>
                 <div class="relative">
-                    <textarea id="modalDescInput" readonly rows="6" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono"></textarea>
-                    <button onclick="copyField('modalDescInput')" class="absolute top-2 right-2 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded text-xs font-semibold">Copy Description</button>
+                    <textarea id="modalDescInput" readonly rows="6"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono"></textarea>
+                    <button onclick="copyField('modalDescInput')"
+                        class="absolute top-2 right-2 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded text-xs font-semibold">Copy
+                        Description</button>
                 </div>
             </div>
 
             <!-- Social Hook (2-Sentence Reels / TikTok Script) -->
             <div class="space-y-1">
                 <div class="flex justify-between text-xs">
-                    <span class="font-semibold text-cyan-300">🎬 Short-Form Video / Reels / TikTok Hook (2 Sentences)</span>
+                    <span class="font-semibold text-cyan-300">🎬 Short-Form Video / Reels / TikTok Hook (2
+                        Sentences)</span>
                     <span class="font-mono text-slate-500 text-[10px]">Script ready</span>
                 </div>
                 <div class="flex gap-2">
-                    <textarea id="modalSocialHookInput" readonly rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono"></textarea>
-                    <button onclick="copyField('modalSocialHookInput')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0">Copy</button>
+                    <textarea id="modalSocialHookInput" readonly rows="2"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-slate-200 font-mono"></textarea>
+                    <button onclick="copyField('modalSocialHookInput')"
+                        class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0">Copy</button>
                 </div>
             </div>
 
             <div class="flex justify-end pt-2">
-                <button onclick="closeListingModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-xs font-semibold">Close</button>
+                <button onclick="closeListingModal()"
+                    class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-xs font-semibold">Close</button>
             </div>
         </div>
     </div>
 
     <!-- MODAL 2: Printable 4x6 Mayhem Conversion Slip -->
-    <div id="slipModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div id="slipModal"
+        class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div class="flex justify-between items-start border-b border-slate-800 pb-3">
                 <div>
                     <h3 class="text-base font-bold text-white">🖨️ Printable 4x6 Conversion Insert</h3>
-                    <p class="text-xs text-slate-400">Put this in your Etsy package to drive direct Mayhem repeat sales.</p>
+                    <p class="text-xs text-slate-400">Put this in your Etsy package to drive direct Mayhem repeat sales.
+                    </p>
                 </div>
                 <button onclick="closeSlipModal()" class="text-slate-400 hover:text-white">✕</button>
             </div>
 
             <!-- The Printable Card Preview -->
-            <div id="printableCard" class="bg-white text-slate-900 p-6 rounded-lg border border-slate-300 space-y-3 font-sans shadow-inner">
+            <div id="printableCard"
+                class="bg-white text-slate-900 p-6 rounded-lg border border-slate-300 space-y-3 font-sans shadow-inner">
                 <div class="border-b-2 border-slate-900 pb-2 text-center flex flex-col items-center">
                     <img src="/assets/logo.png" alt="Gilgarips 3D Studio" class="w-12 h-12 rounded-lg mb-1.5 shadow">
                     <h2 id="slipStudioName" class="text-lg font-black tracking-wider uppercase">Gilgarips 3D Studio</h2>
-                    <p id="slipTagline" class="text-[10px] text-slate-600 font-medium">Tabletop Gaming Gear & Gothic Home Decor</p>
+                    <p id="slipTagline" class="text-[10px] text-slate-600 font-medium">Tabletop Gaming Gear & Gothic
+                        Home Decor</p>
                 </div>
                 <div class="text-center py-2 space-y-1">
                     <p class="text-xs font-bold text-slate-800">Thank you for your order!</p>
-                    <p class="text-[11px] text-slate-600 leading-snug">Hand-crafted and precision printed in Michigan. We hope this piece elevates your table or home altar.</p>
+                    <p class="text-[11px] text-slate-600 leading-snug">Hand-crafted and precision printed in Michigan.
+                        We hope this piece elevates your table or home altar.</p>
                 </div>
                 <div class="bg-slate-100 border border-dashed border-slate-400 p-3 rounded text-center space-y-1">
-                    <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Direct Customer VIP Discount</span>
-                    <div id="slipCouponCode" class="text-base font-black font-mono tracking-widest text-indigo-700">DIRECT15</div>
-                    <p class="text-[10px] text-slate-700">Save <span id="slipDiscountPct">15</span>% on all future orders & custom commissions exclusively at our primary storefront:</p>
-                    <div id="slipStoreUrl" class="text-xs font-bold text-slate-900 pt-1">Mayhem Marketplace / Gilgarips3D</div>
+                    <span class="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Direct Customer VIP
+                        Discount</span>
+                    <div id="slipCouponCode" class="text-base font-black font-mono tracking-widest text-indigo-700">
+                        DIRECT15</div>
+                    <p class="text-[10px] text-slate-700">Save <span id="slipDiscountPct">15</span>% on all future
+                        orders & custom commissions exclusively at our primary storefront:</p>
+                    <div id="slipStoreUrl" class="text-xs font-bold text-slate-900 pt-1">Mayhem Marketplace /
+                        Gilgarips3D</div>
                 </div>
                 <div class="text-[9px] text-slate-500 text-center pt-1">
                     Printed with high-grade PLA • Keep away from high heat (>125°F)
@@ -527,21 +684,27 @@
             </div>
 
             <div class="flex justify-between items-center pt-2">
-                <button onclick="printSlip()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow">Print 4x6 Slip</button>
-                <button onclick="closeSlipModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold">Done</button>
+                <button onclick="printSlip()"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shadow">Print
+                    4x6 Slip</button>
+                <button onclick="closeSlipModal()"
+                    class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold">Done</button>
             </div>
         </div>
     </div>
 
     <!-- MODAL 2B: Pull Photos from Etsy Listing Link -->
-    <div id="etsyPhotoModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div id="etsyPhotoModal"
+        class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+            class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-start border-b border-slate-800 pb-3">
                 <div class="flex items-center gap-2.5">
                     <span class="text-2xl">🌐</span>
                     <div>
                         <h3 class="text-base font-bold text-white">Pull Photos from Etsy Listing</h3>
-                        <p class="text-xs text-slate-400">Download high-res gallery images directly into your product photos folder.</p>
+                        <p class="text-xs text-slate-400">Download high-res gallery images directly into your product
+                            photos folder.</p>
                     </div>
                 </div>
                 <button onclick="closeEtsyPhotoModal()" class="text-slate-400 hover:text-white">✕</button>
@@ -552,13 +715,17 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-300 mb-1">Etsy Listing URL</label>
                     <div class="flex gap-2">
-                        <input type="text" id="etsyListingUrlInput" placeholder="https://www.etsy.com/listing/..." class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
-                        <button id="btnFetchEtsy" onclick="submitEtsyUrl()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shrink-0 shadow">Fetch Photos</button>
+                        <input type="text" id="etsyListingUrlInput" placeholder="https://www.etsy.com/listing/..."
+                            class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-500">
+                        <button id="btnFetchEtsy" onclick="submitEtsyUrl()"
+                            class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-semibold shrink-0 shadow">Fetch
+                            Photos</button>
                     </div>
                 </div>
 
                 <!-- Anti-Bot Warning / HTML Paste Fallback -->
-                <div id="etsyBotNotice" class="hidden rounded-xl p-3 border border-amber-900/60 bg-amber-950/30 text-xs space-y-2 text-amber-200">
+                <div id="etsyBotNotice"
+                    class="hidden rounded-xl p-3 border border-amber-900/60 bg-amber-950/30 text-xs space-y-2 text-amber-200">
                     <div class="font-bold flex items-center justify-between">
                         <span>🛡️ Etsy Anti-Bot Gate Triggered</span>
                         <span class="text-[10px] font-mono text-amber-400">403 Protection</span>
@@ -566,41 +733,55 @@
                     <p class="text-[11px] text-slate-300 leading-relaxed">
                         Etsy blocked the automated server request. To grab all high-res photos instantly:
                         <br>1. Open the listing in your browser.
-                        <br>2. Right-click anywhere &gt; <strong>View Page Source</strong> (or press <strong>Ctrl+U</strong>).
+                        <br>2. Right-click anywhere &gt; <strong>View Page Source</strong> (or press
+                        <strong>Ctrl+U</strong>).
                         <br>3. Copy all (<strong>Ctrl+A</strong>, <strong>Ctrl+C</strong>) and paste below:
                     </p>
-                    <textarea id="etsyPastedHtmlInput" rows="3" placeholder="Paste listing HTML or page source here..." class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-[11px] text-slate-200 font-mono"></textarea>
-                    <button onclick="submitPastedEtsyHtml()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs">Extract Photos from HTML</button>
+                    <textarea id="etsyPastedHtmlInput" rows="3" placeholder="Paste listing HTML or page source here..."
+                        class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-[11px] text-slate-200 font-mono"></textarea>
+                    <button onclick="submitPastedEtsyHtml()"
+                        class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs">Extract
+                        Photos from HTML</button>
                 </div>
 
                 <!-- Found Photos Review & Ingest Grid -->
                 <div id="etsyPhotosResultSection" class="hidden space-y-3 pt-2 border-t border-slate-800">
                     <div class="flex justify-between items-center">
                         <span class="text-xs font-semibold text-slate-200" id="etsyFoundCount">Found Photos (0)</span>
-                        <button onclick="toggleSelectAllEtsyPhotos()" id="btnSelectAllEtsy" class="text-[11px] text-indigo-400 hover:text-indigo-300">Deselect All</button>
+                        <button onclick="toggleSelectAllEtsyPhotos()" id="btnSelectAllEtsy"
+                            class="text-[11px] text-indigo-400 hover:text-indigo-300">Deselect All</button>
                     </div>
-                    <div id="etsyPhotosGrid" class="grid grid-cols-4 gap-2.5 max-h-56 overflow-y-auto p-1 bg-slate-950 rounded-xl border border-slate-800"></div>
-                    <button id="btnIngestEtsyPhotos" onclick="confirmIngestEtsyPhotos()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-lg">Save Selected Photos to Product Folder</button>
+                    <div id="etsyPhotosGrid"
+                        class="grid grid-cols-4 gap-2.5 max-h-56 overflow-y-auto p-1 bg-slate-950 rounded-xl border border-slate-800">
+                    </div>
+                    <button id="btnIngestEtsyPhotos" onclick="confirmIngestEtsyPhotos()"
+                        class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl text-xs transition shadow-lg">Save
+                        Selected Photos to Product Folder</button>
                 </div>
             </div>
 
             <div class="flex justify-end pt-2 border-t border-slate-800">
-                <button onclick="closeEtsyPhotoModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-1.5 rounded-xl text-xs font-semibold">Cancel</button>
+                <button onclick="closeEtsyPhotoModal()"
+                    class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-1.5 rounded-xl text-xs font-semibold">Cancel</button>
             </div>
         </div>
     </div>
 
     <!-- MODAL 3: Admin Center (Storage Root, Dynamic Marketplace Registry, Gemini AI & Slip Config) -->
-    <div id="adminModal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full p-6 space-y-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+    <div id="adminModal"
+        class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+            class="bg-slate-900 border border-slate-800 rounded-2xl max-w-4xl w-full p-6 space-y-6 shadow-2xl max-h-[92vh] overflow-y-auto">
             <div class="flex justify-between items-start border-b border-slate-800 pb-3">
                 <div class="flex items-center gap-3">
-                    <img src="/assets/logo.png" alt="Gilgarips PrintOps" class="w-9 h-9 rounded-lg border border-slate-700">
+                    <img src="/assets/logo.png" alt="Gilgarips PrintOps"
+                        class="w-9 h-9 rounded-lg border border-slate-700">
                     <div>
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
                             Gilgarips PrintOps — Admin Center
                         </h3>
-                        <p class="text-xs text-slate-400">Configure Master Storage Directory (Google Drive), Dynamic Marketplace Registry, Backed Patreons, Gemini AI Engine, and 4x6 Conversion Slip.</p>
+                        <p class="text-xs text-slate-400">Configure Master Storage Directory (Google Drive), Dynamic
+                            Marketplace Registry, Backed Patreons, Gemini AI Engine, and 4x6 Conversion Slip.</p>
                     </div>
                 </div>
                 <button onclick="closeAdminModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
@@ -609,19 +790,25 @@
             <!-- Section 1: Master Storage Directory & App Updates -->
             <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
                 <div class="flex justify-between items-center">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400">1. Master Storage Directory (Local / Google Drive)</h4>
-                    <span class="text-[10px] font-mono text-slate-500">Auto-scaffolds catalog_state.json, settings.json & /products/&lt;slug&gt;/</span>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-400">1. Master Storage Directory
+                        (Local / Google Drive)</h4>
+                    <span class="text-[10px] font-mono text-slate-500">Auto-scaffolds catalog_state.json, settings.json
+                        & /products/&lt;slug&gt;/</span>
                 </div>
                 <div class="flex flex-col sm:flex-row gap-2">
-                    <input type="text" id="adminStorageRoot" placeholder="e.g. G:\My Drive\Gilgarips_Catalog" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
-                    <button type="button" onclick="browseStorageDirectory()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-700 shrink-0">📁 Browse Folder...</button>
+                    <input type="text" id="adminStorageRoot" placeholder="e.g. G:\My Drive\Gilgarips_Catalog"
+                        class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                    <button type="button" onclick="browseStorageDirectory()"
+                        class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-700 shrink-0">📁
+                        Browse Folder...</button>
                 </div>
                 <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
                     <div class="text-xs text-slate-400">
-                        Application Version: <strong class="text-white font-mono">v2.2.0</strong>
+                        Application Version: <strong class="text-white font-mono">v2.2.1</strong>
                         <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
                     </div>
-                    <button type="button" onclick="handleAppUpdateCheck(true)" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow flex items-center gap-1.5">
+                    <button type="button" onclick="handleAppUpdateCheck(true)"
+                        class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow flex items-center gap-1.5">
                         <span>🔄</span> Check & Pull Latest Update
                     </button>
                 </div>
@@ -631,20 +818,26 @@
             <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                     <div>
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-300">2. Dynamic Marketplace Registry</h4>
-                        <p class="text-[11px] text-slate-400">Toggle active channels anytime. Fee rate formulas are locked by default to prevent accidental margin drift.</p>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-indigo-300">2. Dynamic Marketplace
+                            Registry</h4>
+                        <p class="text-[11px] text-slate-400">Toggle active channels anytime. Fee rate formulas are
+                            locked by default to prevent accidental margin drift.</p>
                     </div>
-                    <button type="button" id="unlockFeesBtn" onclick="togglePlatformFeeLock()" class="bg-amber-950/70 hover:bg-amber-900/80 text-amber-300 border border-amber-700/70 px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0">
+                    <button type="button" id="unlockFeesBtn" onclick="togglePlatformFeeLock()"
+                        class="bg-amber-950/70 hover:bg-amber-900/80 text-amber-300 border border-amber-700/70 px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 shrink-0">
                         <span>🔒</span> Unlock Fee Rates
                     </button>
                 </div>
 
                 <!-- Warning Banner shown when Fee Rates are unlocked -->
-                <div id="feeUnlockWarningBanner" class="hidden bg-rose-950/50 border border-rose-800/80 text-rose-200 px-3.5 py-2.5 rounded-xl text-xs flex items-start gap-2.5">
+                <div id="feeUnlockWarningBanner"
+                    class="hidden bg-rose-950/50 border border-rose-800/80 text-rose-200 px-3.5 py-2.5 rounded-xl text-xs flex items-start gap-2.5">
                     <span class="text-base leading-none mt-0.5">⚠️</span>
                     <div>
                         <div class="font-bold text-rose-300">Platform Fee Formulas Unlocked</div>
-                        <p class="text-[11px] text-rose-200/90 mt-0.5">Changes to commission percentages, processing rates, fixed transaction fees, or monthly subscriptions will immediately alter Net Margins, Recommended Target Prices, and YTD Platform Leakage across your entire catalog.</p>
+                        <p class="text-[11px] text-rose-200/90 mt-0.5">Changes to commission percentages, processing
+                            rates, fixed transaction fees, or monthly subscriptions will immediately alter Net Margins,
+                            Recommended Target Prices, and YTD Platform Leakage across your entire catalog.</p>
                     </div>
                 </div>
 
@@ -671,10 +864,13 @@
             <div id="adminPatreonsSection" class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
                 <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
                     <div>
-                        <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-300">3. Backed Patreons & Design Subscriptions</h4>
-                        <p class="text-[11px] text-slate-400">Manage the commercial 3D designer Patreons you back and their monthly subscription costs for ROI tracking.</p>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-emerald-300">3. Backed Patreons &
+                            Design Subscriptions</h4>
+                        <p class="text-[11px] text-slate-400">Manage the commercial 3D designer Patreons you back and
+                            their monthly subscription costs for ROI tracking.</p>
                     </div>
-                    <button type="button" onclick="addAdminPatreonRow()" class="bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-700/70 px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 shrink-0">
+                    <button type="button" onclick="addAdminPatreonRow()"
+                        class="bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 border border-emerald-700/70 px-3 py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-1 shrink-0">
                         <span>＋</span> Add Patreon / Designer
                     </button>
                 </div>
@@ -697,59 +893,72 @@
             <!-- Section 4 & 5: Native Gemini Listing Engine & 4x6 Conversion Slip -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-purple-300">4. Native Gemini AI Listing Engine (google-genai)</h4>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-purple-300">4. Native Gemini AI Listing
+                        Engine (google-genai)</h4>
                     <div>
                         <label class="block text-[11px] text-slate-400 mb-1">Google AI Studio API Key</label>
-                        <input type="password" id="adminGeminiKey" placeholder="AIzaSy..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                        <input type="password" id="adminGeminiKey" placeholder="AIzaSy..."
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-[11px] text-slate-400 mb-1">Gemini Model</label>
-                        <input type="text" id="adminGeminiModel" value="gemini-2.5-flash" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
+                        <input type="text" id="adminGeminiModel" value="gemini-2.5-flash"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
                         <label class="block text-[11px] text-slate-400 mb-1">Brand Persona / Voice System Prompt</label>
-                        <textarea id="adminBrandPersona" rows="4" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"></textarea>
+                        <textarea id="adminBrandPersona" rows="4"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"></textarea>
                     </div>
                 </div>
 
                 <!-- Section 5: 4x6 Conversion Slip Settings -->
                 <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-3">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-amber-300">5. 4x6 Mayhem Conversion Slip Configuration</h4>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-amber-300">5. 4x6 Mayhem Conversion Slip
+                        Configuration</h4>
                     <div>
                         <label class="block text-[11px] text-slate-400 mb-1">Studio Header Name</label>
-                        <input type="text" id="adminSlipStudio" value="Gilgarips 3D Studio" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                        <input type="text" id="adminSlipStudio" value="Gilgarips 3D Studio"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
                     </div>
                     <div>
                         <label class="block text-[11px] text-slate-400 mb-1">Studio Tagline</label>
-                        <input type="text" id="adminSlipTagline" value="Tabletop Gaming Gear & Gothic Home Decor" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                        <input type="text" id="adminSlipTagline" value="Tabletop Gaming Gear & Gothic Home Decor"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div>
                             <label class="block text-[11px] text-slate-400 mb-1">VIP Coupon Code</label>
-                            <input type="text" id="adminSlipCoupon" value="DIRECT15" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white">
+                            <input type="text" id="adminSlipCoupon" value="DIRECT15"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white">
                         </div>
                         <div>
                             <label class="block text-[11px] text-slate-400 mb-1">Discount (%)</label>
-                            <input type="number" id="adminSlipDiscount" value="15" min="1" max="90" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white">
+                            <input type="number" id="adminSlipDiscount" value="15" min="1" max="90"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white">
                         </div>
                     </div>
                     <div>
                         <label class="block text-[11px] text-slate-400 mb-1">Primary Storefront URL / Callout</label>
-                        <input type="text" id="adminSlipUrl" value="Mayhem Marketplace / Gilgarips3D" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
+                        <input type="text" id="adminSlipUrl" value="Mayhem Marketplace / Gilgarips3D"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white">
                     </div>
                 </div>
             </div>
 
             <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
-                <button onclick="closeAdminModal()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold">Cancel</button>
-                <button onclick="saveAdminSettings()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-lg">💾 Save Admin Settings</button>
+                <button onclick="closeAdminModal()"
+                    class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl text-xs font-semibold">Cancel</button>
+                <button onclick="saveAdminSettings()"
+                    class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-xl text-xs font-semibold shadow-lg">💾
+                    Save Admin Settings</button>
             </div>
         </div>
     </div>
 
     <script>
         let catalog = [];
-        let uploadedMonths = {"Jan":false,"Feb":false,"Mar":false,"Apr":false,"May":false,"Jun":false,"Jul":false,"Aug":false,"Sep":false,"Oct":false,"Nov":false,"Dec":false};
+        let uploadedMonths = { "Jan": false, "Feb": false, "Mar": false, "Apr": false, "May": false, "Jun": false, "Jul": false, "Aug": false, "Sep": false, "Oct": false, "Nov": false, "Dec": false };
         let appSettings = {
             storage_root: "",
             auto_download_json: false,
@@ -983,7 +1192,7 @@
                 countEl.innerText = `${data.individual_files.length} plates combined`;
                 listEl.innerHTML = data.individual_files.map((f, i) => `
                     <div class="flex justify-between items-center py-0.5 border-b border-slate-900 last:border-0">
-                        <span class="truncate max-w-[170px]" title="${f.filename}">#${i+1} ${f.filename}</span>
+                        <span class="truncate max-w-[170px]" title="${f.filename}">#${i + 1} ${f.filename}</span>
                         <span class="text-indigo-300 shrink-0">${f.filament_grams}g • ${f.print_hours}h • max ${f.bbox_in?.x}"×${f.bbox_in?.y}"</span>
                     </div>
                 `).join('');
@@ -1081,14 +1290,14 @@
         function parseGcodeTextFallback(text, originalFilename) {
             let filamentGrams = 0;
             let printHours = 0;
-            const filamentMatch = text.match(/total filament used \[g\]\s*=\s*([\d\.]+)/i) || 
-                                  text.match(/filament used \[g\]\s*=\s*([\d\.]+)/i) ||
-                                  text.match(/;\s*filament used\s*=\s*([\d\.]+)g/i);
+            const filamentMatch = text.match(/total filament used \[g\]\s*=\s*([\d\.]+)/i) ||
+                text.match(/filament used \[g\]\s*=\s*([\d\.]+)/i) ||
+                text.match(/;\s*filament used\s*=\s*([\d\.]+)g/i);
             if (filamentMatch) filamentGrams = Math.round(parseFloat(filamentMatch[1]));
 
-            const timeMatch = text.match(/model printing time:\s*([0-9dhms\s]+);/i) || 
-                              text.match(/estimated printing time \(normal mode\)\s*=\s*([0-9dhms\s]+)/i) ||
-                              text.match(/;\s*total estimated time:\s*([0-9dhms\s]+)/i);
+            const timeMatch = text.match(/model printing time:\s*([0-9dhms\s]+);/i) ||
+                text.match(/estimated printing time \(normal mode\)\s*=\s*([0-9dhms\s]+)/i) ||
+                text.match(/;\s*total estimated time:\s*([0-9dhms\s]+)/i);
             if (timeMatch) {
                 const rawTime = timeMatch[1];
                 let totalH = 0;
@@ -1176,13 +1385,13 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(appSettings)
                 });
-            } catch (e) {}
+            } catch (e) { }
         }
 
         function renderMonthsGrid() {
             const container = document.getElementById('monthsGrid');
             container.innerHTML = '';
-            
+
             MONTH_NAMES.forEach(m => {
                 const isUploaded = uploadedMonths[m];
                 container.innerHTML += `
@@ -1330,7 +1539,7 @@
 
             const ship = computeShippingDetails(item.packageWeight, item.boxLength, item.boxWidth, item.boxHeight);
             const freeShippingActive = item.freeShipping !== undefined ? !!item.freeShipping : (item.freeShippingOver35 !== undefined ? !!item.freeShippingOver35 : false);
-            
+
             const shippingOutflow = freeShippingActive ? ship.shippingCost : Math.max(0, ship.shippingCost - item.shippingCharged);
             const totalDirectCost = directItemCost + shippingOutflow;
 
@@ -1381,7 +1590,7 @@
                 statusLabel.innerText = inputs.freeShipping ? 'Yes' : 'No';
                 statusLabel.className = inputs.freeShipping ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold';
             }
-            
+
             const fin = computeItemFinancials(inputs);
             document.getElementById('summaryTotalCost').innerText = `$${fin.directCost.toFixed(2)}`;
             document.getElementById('summaryMachineRate').innerText = `$${Math.max(0, fin.machineRate).toFixed(2)}/hr`;
@@ -1392,7 +1601,7 @@
                 badge.innerText = `DIM: ${fin.ship.dimWeightLbs} lbs (${fin.ship.cubicInches} in³)`;
                 badge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950/60 text-rose-400 border border-rose-800";
             } else {
-                badge.innerText = `${(inputs.packageWeight/16).toFixed(1)} lbs (${fin.ship.cubicInches} in³)`;
+                badge.innerText = `${(inputs.packageWeight / 16).toFixed(1)} lbs (${fin.ship.cubicInches} in³)`;
                 badge.className = "text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700";
             }
 
@@ -1409,7 +1618,7 @@
                             </h3>
                         </div>
                         <span class="text-xs font-mono px-2 py-0.5 rounded ${fin.ship.isDim ? 'bg-rose-900/40 text-rose-300 border border-rose-700' : 'bg-slate-800 text-slate-300'}">
-                            ${fin.ship.isDim ? `DIM Weight: ${fin.ship.dimWeightLbs} lbs` : `Billable Weight: ${(fin.ship.billableWeightOz/16).toFixed(1)} lbs`}
+                            ${fin.ship.isDim ? `DIM Weight: ${fin.ship.dimWeightLbs} lbs` : `Billable Weight: ${(fin.ship.billableWeightOz / 16).toFixed(1)} lbs`}
                         </span>
                     </div>
 
@@ -1446,7 +1655,7 @@
                         <span class="text-indigo-400">📦</span>
                         <span class="text-xs text-slate-300">Customer Charged $${inputs.shippingCharged.toFixed(2)} Shipping (Free Shipping Off).</span>
                     </div>
-                    <span class="text-xs font-mono text-slate-400">Label Cost: $${fin.ship.shippingCost.toFixed(2)} (${(fin.ship.billableWeightOz/16).toFixed(1)} lbs)</span>
+                    <span class="text-xs font-mono text-slate-400">Label Cost: $${fin.ship.shippingCost.toFixed(2)} (${(fin.ship.billableWeightOz / 16).toFixed(1)} lbs)</span>
                 `;
             }
 
@@ -1548,7 +1757,7 @@
                 countEl.innerText = `${item.gcodeFiles.length} gcode files`;
                 listEl.innerHTML = item.gcodeFiles.map((gf, i) => `
                     <div class="flex justify-between items-center py-0.5 border-b border-slate-900 last:border-0">
-                        <span class="truncate max-w-[220px]" title="${gf}">#${i+1} ${gf}</span>
+                        <span class="truncate max-w-[220px]" title="${gf}">#${i + 1} ${gf}</span>
                         <span class="text-indigo-400 shrink-0">🖨️ on disk</span>
                     </div>
                 `).join('');
@@ -1654,7 +1863,7 @@
                         renderPlatformTotalFees();
                         return;
                     }
-                } catch (e) {}
+                } catch (e) { }
                 catalog.splice(index, 1);
                 persistCatalog();
             }
@@ -1848,8 +2057,8 @@
                 const isChecked = selectedEtsyImageUrls.has(imgUrl);
                 return `
                     <div onclick="toggleEtsyPhotoSelection('${encodeURIComponent(imgUrl)}')" class="relative cursor-pointer rounded-lg overflow-hidden border ${isChecked ? 'border-amber-400 ring-2 ring-amber-400/50' : 'border-slate-800 opacity-60'} bg-slate-900 group">
-                        <img src="${imgUrl}" alt="Etsy Photo ${i+1}" class="w-full h-24 object-cover" onerror="this.onerror=null; this.src='/assets/logo.png'">
-                        <div class="absolute top-1 left-1 bg-slate-950/80 rounded px-1 text-[9px] font-mono text-slate-300">#${i+1}</div>
+                        <img src="${imgUrl}" alt="Etsy Photo ${i + 1}" class="w-full h-24 object-cover" onerror="this.onerror=null; this.src='/assets/logo.png'">
+                        <div class="absolute top-1 left-1 bg-slate-950/80 rounded px-1 text-[9px] font-mono text-slate-300">#${i + 1}</div>
                         <div class="absolute top-1 right-1 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${isChecked ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-400'}">
                             ${isChecked ? '✓' : ''}
                         </div>
@@ -1935,7 +2144,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ slug })
                 });
-            } catch (e) {}
+            } catch (e) { }
         }
 
         function renderCatalog() {
@@ -1949,7 +2158,7 @@
                 const shorts = activeChannels.map(c => c.short || c.key.slice(0, 2)).join(' / ');
                 ytdHeader.innerText = `YTD Units (${shorts || 'None'})`;
             }
-            
+
             const visibleItems = catalog.map((item, index) => ({ item, index })).filter(({ item }) => {
                 if (!shouldFilter) return true;
                 const matchName = (item.name || '').toLowerCase().includes(searchInput);
@@ -2007,9 +2216,9 @@
                         <td class="p-3">
                             <div class="flex items-center gap-2.5">
                                 ${thumbUrl
-                                    ? `<img src="${thumbUrl}" alt="${item.name}" class="w-10 h-10 rounded-lg object-cover border border-slate-700 shrink-0">`
-                                    : `<div onclick="triggerRowPhotoUpload(event, '${slug}')" class="w-10 h-10 rounded-lg bg-slate-950 border border-dashed border-slate-700 hover:border-emerald-400 flex items-center justify-center text-slate-500 hover:text-emerald-300 text-xs shrink-0" title="Drop or click to add 01_hero.jpg">📷</div>`
-                                }
+                        ? `<img src="${thumbUrl}" alt="${item.name}" class="w-10 h-10 rounded-lg object-cover border border-slate-700 shrink-0">`
+                        : `<div onclick="triggerRowPhotoUpload(event, '${slug}')" class="w-10 h-10 rounded-lg bg-slate-950 border border-dashed border-slate-700 hover:border-emerald-400 flex items-center justify-center text-slate-500 hover:text-emerald-300 text-xs shrink-0" title="Drop or click to add 01_hero.jpg">📷</div>`
+                    }
                                 <div>
                                     <div class="font-medium text-white flex items-center gap-1.5">
                                         <span>${item.name}</span>
@@ -2153,15 +2362,15 @@
                 "gothic shelf", "geek gaming gift", "fantasy tabletop", "resin print", "rpg dice vault"
             ];
             const staticDesc = `Elevate your game table or altar with the ${item.name}, precision crafted by Gilgarips 3D Studio in St. Clair Shores, Michigan.\n\n` +
-                         `SPECIFICATIONS & DIMENSIONS:\n` +
-                         `• Box Dimensions: ${item.boxLength || 9}" x ${item.boxWidth || 6}" x ${item.boxHeight || 4}"\n` +
-                         `• Package Weight: ${item.packageWeight || 14} oz\n` +
-                         `• Material: High-grade ${item.materialType || 'PLA Pro'} (Durable, matte artisan finish)\n` +
-                         `• Sourced & Designed by: ${item.patreonSource}\n\n` +
-                         `SHIPPING & PACKAGING:\n` +
-                         `Ships securely cushioned via USPS Ground Advantage with full tracking.\n\n` +
-                         `DISCLAIMER:\n` +
-                         `Keep away from extreme heat (>125°F). Dice and tabletop miniatures shown in photos are for scale demonstration only.`;
+                `SPECIFICATIONS & DIMENSIONS:\n` +
+                `• Box Dimensions: ${item.boxLength || 9}" x ${item.boxWidth || 6}" x ${item.boxHeight || 4}"\n` +
+                `• Package Weight: ${item.packageWeight || 14} oz\n` +
+                `• Material: High-grade ${item.materialType || 'PLA Pro'} (Durable, matte artisan finish)\n` +
+                `• Sourced & Designed by: ${item.patreonSource}\n\n` +
+                `SHIPPING & PACKAGING:\n` +
+                `Ships securely cushioned via USPS Ground Advantage with full tracking.\n\n` +
+                `DISCLAIMER:\n` +
+                `Keep away from extreme heat (>125°F). Dice and tabletop miniatures shown in photos are for scale demonstration only.`;
             const staticHook = `Stop rolling critical fails on a flat table—watch how the ${item.name} transforms every D&D session right off the print bed! Precision printed in Michigan with ${item.materialType || 'PLA Pro'} and available now in the Gilgarips 3D shop.`;
 
             populateListingModalFields({
@@ -2413,9 +2622,9 @@
                         </td>
                         <td class="py-2 px-2 text-right">
                             ${isNone
-                                ? '<span class="text-[10px] text-slate-600 font-mono">System</span>'
-                                : `<button type="button" onclick="removeAdminPatreonRow(${idx})" class="text-rose-400 hover:text-rose-300 bg-rose-950/40 border border-rose-900/50 px-2 py-1 rounded text-[11px]">✕</button>`
-                            }
+                        ? '<span class="text-[10px] text-slate-600 font-mono">System</span>'
+                        : `<button type="button" onclick="removeAdminPatreonRow(${idx})" class="text-rose-400 hover:text-rose-300 bg-rose-950/40 border border-rose-900/50 px-2 py-1 rounded text-[11px]">✕</button>`
+                    }
                         </td>
                     </tr>
                 `;
@@ -2528,7 +2737,7 @@
             Papa.parse(file, {
                 header: true,
                 skipEmptyLines: true,
-                complete: function(results) {
+                complete: function (results) {
                     let imported = 0;
                     results.data.forEach(row => {
                         const title = row['TITLE'] || row['Title'] || row['Item Name'];
@@ -2610,13 +2819,13 @@
                 Papa.parse(file, {
                     header: true,
                     skipEmptyLines: true,
-                    complete: function(results) {
+                    complete: function (results) {
                         const monthlyItemSales = {};
 
                         results.data.forEach(row => {
                             const dateStr = row['Date'] || row['Sale Date'] || row['Order Date'] || '';
                             let rowMonthKey = fileMonthKey;
-                            
+
                             if (dateStr) {
                                 const parsedDate = new Date(dateStr);
                                 if (!isNaN(parsedDate.getTime())) {
@@ -2671,7 +2880,7 @@
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     const parsed = JSON.parse(e.target.result);
                     catalog = Array.isArray(parsed) ? parsed : (parsed.catalog || []);
@@ -2743,7 +2952,7 @@
                     if (btn) {
                         icon.classList.remove('animate-spin');
                         icon.innerText = '✅';
-                        text.innerText = 'Up to Date (v2.2.0)';
+                        text.innerText = 'Up to Date (v2.2.1)';
                         setTimeout(() => {
                             if (icon) icon.innerText = '🔄';
                             if (text) text.innerText = 'Check for Updates';
@@ -2797,5 +3006,5 @@
         window.onload = initApp;
     </script>
 </body>
-</html>
 
+</html>
