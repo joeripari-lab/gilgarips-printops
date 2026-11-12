@@ -9,9 +9,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen p-4 sm:p-6 font-sans">
+<body class="bg-slate-950 text-slate-100 min-h-screen p-3 sm:p-5 font-sans">
 
-    <div class="max-w-7xl mx-auto space-y-6">
+    <div class="w-full space-y-6">
         <!-- Header -->
         <header class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
             <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -210,8 +210,8 @@
 
                         <div>
                             <label class="flex items-center gap-2 cursor-pointer pt-1">
-                                <input type="checkbox" id="freeShippingOver35" checked onchange="calculateAll()" class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-0">
-                                <span class="text-xs font-medium text-slate-300">Offer Free Shipping if Sale Price ≥ $35</span>
+                                <input type="checkbox" id="freeShippingToggle" onchange="calculateAll()" class="w-4 h-4 rounded bg-slate-950 border-slate-800 text-indigo-600 focus:ring-0">
+                                <span class="text-xs font-semibold text-slate-300">Free Shipping: <span id="freeShippingStatusLabel" class="text-amber-400 font-bold">No</span></span>
                             </label>
                         </div>
                     </div>
@@ -1232,7 +1232,7 @@
                 objY: parseFloat(document.getElementById('objY').value) || 0,
                 objZ: parseFloat(document.getElementById('objZ').value) || 0,
                 bedTempC: currentBedTempC,
-                freeShippingOver35: document.getElementById('freeShippingOver35').checked,
+                freeShipping: document.getElementById('freeShippingToggle').checked,
                 filamentGrams: parseFloat(document.getElementById('filamentGrams').value) || 0,
                 filamentCostPerKg: parseFloat(document.getElementById('filamentCostPerKg').value) || 0,
                 printHours: parseFloat(document.getElementById('printHours').value) || 0,
@@ -1258,7 +1258,13 @@
             document.getElementById('objZ').value = item.objZ || '';
             currentBedTempC = item.bedTempC || 60;
             document.getElementById('bedTempBadge').innerText = `Bed: ${currentBedTempC}°C`;
-            document.getElementById('freeShippingOver35').checked = item.freeShippingOver35;
+            const isFreeShipping = item.freeShipping !== undefined ? !!item.freeShipping : (item.freeShippingOver35 !== undefined ? !!item.freeShippingOver35 : false);
+            document.getElementById('freeShippingToggle').checked = isFreeShipping;
+            const statusLabel = document.getElementById('freeShippingStatusLabel');
+            if (statusLabel) {
+                statusLabel.innerText = isFreeShipping ? 'Yes' : 'No';
+                statusLabel.className = isFreeShipping ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold';
+            }
             document.getElementById('filamentGrams').value = item.filamentGrams;
             document.getElementById('filamentCostPerKg').value = item.filamentCostPerKg;
             document.getElementById('printHours').value = item.printHours;
@@ -1323,7 +1329,7 @@
             const directItemCost = item.itemCost + filamentCost + electricityCost + item.suppliesCost;
 
             const ship = computeShippingDetails(item.packageWeight, item.boxLength, item.boxWidth, item.boxHeight);
-            const freeShippingActive = item.freeShippingOver35 && item.salePrice >= 35;
+            const freeShippingActive = item.freeShipping !== undefined ? !!item.freeShipping : (item.freeShippingOver35 !== undefined ? !!item.freeShippingOver35 : false);
             
             const shippingOutflow = freeShippingActive ? ship.shippingCost : Math.max(0, ship.shippingCost - item.shippingCharged);
             const totalDirectCost = directItemCost + shippingOutflow;
@@ -1369,6 +1375,12 @@
         function calculateAll() {
             const inputs = getInputs();
             document.getElementById('activeItemDisplay').innerText = inputs.name;
+
+            const statusLabel = document.getElementById('freeShippingStatusLabel');
+            if (statusLabel) {
+                statusLabel.innerText = inputs.freeShipping ? 'Yes' : 'No';
+                statusLabel.className = inputs.freeShipping ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold';
+            }
             
             const fin = computeItemFinancials(inputs);
             document.getElementById('summaryTotalCost').innerText = `$${fin.directCost.toFixed(2)}`;
@@ -1393,7 +1405,7 @@
                         <div class="flex items-center gap-2">
                             <span class="text-lg">${isHeavyDrag ? '🚨' : '⚡'}</span>
                             <h3 class="text-sm font-bold ${isHeavyDrag ? 'text-rose-400' : 'text-indigo-300'}">
-                                Free Shipping Trigger Active ($35+ threshold)
+                                Free Shipping Enabled (Seller Pays Postage)
                             </h3>
                         </div>
                         <span class="text-xs font-mono px-2 py-0.5 rounded ${fin.ship.isDim ? 'bg-rose-900/40 text-rose-300 border border-rose-700' : 'bg-slate-800 text-slate-300'}">
@@ -1432,7 +1444,7 @@
                 alertCard.innerHTML = `
                     <div class="flex items-center gap-2">
                         <span class="text-indigo-400">📦</span>
-                        <span class="text-xs text-slate-300">Customer Charged $${inputs.shippingCharged.toFixed(2)} Shipping (Sale < $35).</span>
+                        <span class="text-xs text-slate-300">Customer Charged $${inputs.shippingCharged.toFixed(2)} Shipping (Free Shipping Off).</span>
                     </div>
                     <span class="text-xs font-mono text-slate-400">Label Cost: $${fin.ship.shippingCost.toFixed(2)} (${(fin.ship.billableWeightOz/16).toFixed(1)} lbs)</span>
                 `;
@@ -2532,7 +2544,7 @@
                             boxLength: 9,
                             boxWidth: 6,
                             boxHeight: 4,
-                            freeShippingOver35: true,
+                            freeShipping: false,
                             filamentGrams: 110,
                             filamentCostPerKg: 20.00,
                             printHours: 4.5,
