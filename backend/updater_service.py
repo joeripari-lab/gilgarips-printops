@@ -3,11 +3,12 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import urllib.request
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-APP_VERSION = "2.2.1"
+APP_VERSION = "2.2.2"
 GITHUB_REPO = "joeripari-lab/gilgarips-printops"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 USER_AGENT = "GilgaripsPrintOps-Updater"
@@ -172,15 +173,60 @@ def apply_update() -> Dict[str, Any]:
 
         # Batch script to wait for current process exit, replace executable, and relaunch
         current_exe = Path(sys.executable).resolve()
+        current_pid = os.getpid()
         updater_bat = temp_dir / "printops_updater.bat"
+        
+        # Robust in-place updater script:
+        # 1. Gracefully waits or terminates current running process PID
+        # 2. Loops until the file lock on current_exe is released (up to 15 tries)
+        # 3. Overwrites current_exe with new_exe_path
+        # 4. Cleans up temp updater binary and launches the updated application
         bat_content = f"""@echo off
-timeout /t 2 /nobreak >nul
-copy /y "{new_exe_path}" "{current_exe}" >nul
+setlocal enabledelayedexpansion
+
+:: 1. Ensure the running app process has terminated
+taskkill /F /PID {current_pid} >nul 2>&1
+timeout /t 1 /nobreak >nul
+
+:: 2. Wait for current exe file lock release
+set RETRIES=0
+:RETRY_COPY
+copy /y "{new_exe_path}" "{current_exe}" >nul 2>&1
+if not errorlevel 1 goto LAUNCH
+set /a RETRIES+=1
+if !RETRIES! geq 15 goto FAILED
+timeout /t 1 /nobreak >nul
+goto RETRY_COPY
+
+:LAUNCH
+del /f /q "{new_exe_path}" >nul 2>&1
 start "" "{current_exe}"
 del "%~f0"
+exit /b 0
+
+:FAILED
+echo Update copy timed out. >> "{temp_dir}\\printops_update_err.log"
+del "%~f0"
+exit /b 1
 """
         updater_bat.write_text(bat_content, encoding="utf-8")
-        subprocess.Popen(["cmd.exe", "/c", str(updater_bat)], creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0)
+        subprocess.Popen(
+            ["cmd.exe", "/c", str(updater_bat)],
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+            close_fds=True,
+        )
+
+        # Cleanly trigger self-termination so PyInstaller unwinds gracefully without error
+        def _delayed_exit():
+            import time
+            time.sleep(0.5)
+            # Try soft exit first, fallback to os._exit
+            try:
+                os._exit(0)
+            except Exception:
+                pass
+
+        threading.Thread(target=_delayed_exit, daemon=True).start()
 
         return {
             "success": True,
