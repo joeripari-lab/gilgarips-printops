@@ -160,7 +160,10 @@ def generate_gemini_listing_pack(
         from google import genai
         from google.genai import types
 
-        client = genai.Client(api_key=api_key)
+        client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(api_version="v1beta")
+        )
         response = client.models.generate_content(
             model=model_name,
             contents=prompt,

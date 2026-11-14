@@ -23,7 +23,7 @@
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                             Gilgarips PrintOps <span
-                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.2.3
+                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.2.4
                                 Desktop</span>
                         </h1>
                         <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver,
@@ -804,7 +804,7 @@
                 </div>
                 <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
                     <div class="text-xs text-slate-400">
-                        Application Version: <strong class="text-white font-mono">v2.2.3</strong>
+                        Application Version: <strong class="text-white font-mono">v2.2.4</strong>
                         <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
                     </div>
                     <button type="button" onclick="handleAppUpdateCheck(true)"
@@ -897,7 +897,7 @@
                         Engine (google-genai)</h4>
                     <div>
                         <label class="block text-[11px] text-slate-400 mb-1">Google AI Studio API Key</label>
-                        <input type="password" id="adminGeminiKey" placeholder="AIzaSy..."
+                        <input type="password" id="adminGeminiKey" placeholder="Paste your Gemini API Key here..."
                             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs font-mono text-white focus:outline-none focus:border-indigo-500">
                     </div>
                     <div>
@@ -2964,7 +2964,7 @@
                     if (btn) {
                         icon.classList.remove('animate-spin');
                         icon.innerText = '✅';
-                        text.innerText = 'Up to Date (v2.2.3)';
+                        text.innerText = `Up to Date (v${info.current_version || '2.2.4'})`;
                         setTimeout(() => {
                             if (icon) icon.innerText = '🔄';
                             if (text) text.innerText = 'Check for Updates';
