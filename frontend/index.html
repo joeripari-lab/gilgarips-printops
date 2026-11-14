@@ -23,7 +23,7 @@
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                             Gilgarips PrintOps <span
-                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.2.2
+                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.2.3
                                 Desktop</span>
                         </h1>
                         <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver,
@@ -804,7 +804,7 @@
                 </div>
                 <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
                     <div class="text-xs text-slate-400">
-                        Application Version: <strong class="text-white font-mono">v2.2.2</strong>
+                        Application Version: <strong class="text-white font-mono">v2.2.3</strong>
                         <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
                     </div>
                     <button type="button" onclick="handleAppUpdateCheck(true)"
@@ -1063,7 +1063,7 @@
             return (appSettings.channels || []).find(c => c.key === key);
         }
 
-        // USPS Ground Advantage Weight & DIM Logic (Preserved 100%)
+        // USPS Ground Advantage Weight & DIM Logic
         function computeShippingDetails(weightOz, length, width, height) {
             const l = Math.ceil(length || 0);
             const w = Math.ceil(width || 0);
@@ -1074,6 +1074,7 @@
             let dimWeightLbs = 0;
             let billableWeightOz = weightOz;
 
+            // Flag dimensional weight if volume > 1 cubic foot (1,728 cu in)
             if (cubicInches > 1728) {
                 isDim = true;
                 dimWeightLbs = Math.ceil(cubicInches / 139);
@@ -1083,22 +1084,31 @@
                 }
             }
 
-            let cost = 4.50;
-            if (billableWeightOz <= 4) cost = 4.50;
-            else if (billableWeightOz <= 8) cost = 4.90;
-            else if (billableWeightOz <= 12) cost = 5.50;
-            else if (billableWeightOz <= 15.9) cost = 6.20;
-            else if (billableWeightOz <= 32) cost = 8.50;
-            else if (billableWeightOz <= 48) cost = 10.50;
-            else if (billableWeightOz <= 64) cost = 12.50;
-            else if (billableWeightOz <= 80) cost = 14.50;
-            else if (billableWeightOz <= 112) cost = 17.50;
-            else if (billableWeightOz <= 160) cost = 21.00;
-            else cost = 25.00 + (Math.ceil((billableWeightOz - 160) / 16) * 1.50);
+            // Helper to get shipping rate for a given billable weight in ounces
+            function calcRate(oz, cuIn) {
+                let cost = 4.50;
+                if (oz <= 4) cost = 4.50;
+                else if (oz <= 8) cost = 4.90;
+                else if (oz <= 12) cost = 5.50;
+                else if (oz <= 15.9) cost = 6.20;
+                else if (oz <= 32) cost = 8.50;
+                else if (oz <= 48) cost = 10.50;
+                else if (oz <= 64) cost = 12.50;
+                else if (oz <= 80) cost = 14.50;
+                else if (oz <= 112) cost = 17.50;
+                else if (oz <= 160) cost = 21.00;
+                else cost = 25.00 + (Math.ceil((oz - 160) / 16) * 1.50);
 
-            if (cubicInches > 3456) {
-                cost += 15.00;
+                if (cuIn > 3456) {
+                    cost += 15.00;
+                }
+                return cost;
             }
+
+            // Normal weight-based shipping cost (without dimensional weight penalty)
+            const normalWeightCost = calcRate(weightOz, cubicInches > 3456 ? 3456 : cubicInches);
+            // Full DIM-adjusted shipping cost
+            const fullDimCost = calcRate(billableWeightOz, cubicInches);
 
             return {
                 cubicInches,
@@ -1106,7 +1116,8 @@
                 dimWeightLbs,
                 actualWeightOz: weightOz,
                 billableWeightOz,
-                shippingCost: cost
+                shippingCost: normalWeightCost,
+                fullDimCost: fullDimCost
             };
         }
 
@@ -1540,15 +1551,23 @@
             const ship = computeShippingDetails(item.packageWeight, item.boxLength, item.boxWidth, item.boxHeight);
             const freeShippingActive = item.freeShipping !== undefined ? !!item.freeShipping : (item.freeShippingOver35 !== undefined ? !!item.freeShippingOver35 : false);
 
-            const shippingOutflow = freeShippingActive ? ship.shippingCost : Math.max(0, ship.shippingCost - item.shippingCharged);
+            // When customer pays for shipping (Free Shipping = No), shipping is customer-paid ($0 net shipping outflow to seller).
+            // When Free Shipping = Yes, seller absorbs the actual postage cost.
+            const shippingOutflow = freeShippingActive ? ship.shippingCost : 0;
             const totalDirectCost = directItemCost + shippingOutflow;
 
+            // When customer pays shipping, platforms charge fees on total order (item + shipping), but shipping revenue covers label cost.
             const totalRevenue = item.salePrice + (freeShippingActive ? 0 : item.shippingCharged);
-            const marginBase = totalRevenue > 0 ? totalRevenue : item.salePrice;
+            const marginBase = item.salePrice > 0 ? item.salePrice : totalRevenue;
 
             const byChannel = {};
             (appSettings.channels || []).forEach(ch => {
-                byChannel[ch.key] = computeChannelFinancials(ch, item, totalRevenue, marginBase, directItemCost, totalDirectCost);
+                let channelTotalCost = totalDirectCost;
+                if (!freeShippingActive && (ch.key === 'Mayhem' || ch.fee_model === 'subscription')) {
+                    // For Mayhem / direct subscription storefront, customer pays direct postage, no fee drag
+                    channelTotalCost = directItemCost;
+                }
+                byChannel[ch.key] = computeChannelFinancials(ch, item, totalRevenue, marginBase, directItemCost, channelTotalCost);
             });
 
             // Guarantee keys for legacy accessors
@@ -1606,56 +1625,47 @@
             }
 
             const alertCard = document.getElementById('dimAlertCard');
-            if (fin.freeShippingActive) {
-                const isHeavyDrag = fin.etsy.margin < 50;
-                alertCard.className = `p-5 rounded-2xl border shadow-xl transition space-y-3 ${isHeavyDrag ? 'bg-rose-950/20 border-rose-900/60' : 'bg-indigo-950/20 border-indigo-900/50'}`;
+            const hasDimFlag = fin.ship.isDim;
+
+            if (hasDimFlag) {
+                alertCard.className = "bg-amber-950/30 border border-amber-800/70 p-4 rounded-2xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5";
                 alertCard.innerHTML = `
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                        <div class="flex items-center gap-2">
-                            <span class="text-lg">${isHeavyDrag ? '🚨' : '⚡'}</span>
-                            <h3 class="text-sm font-bold ${isHeavyDrag ? 'text-rose-400' : 'text-indigo-300'}">
-                                Free Shipping Enabled (Seller Pays Postage)
-                            </h3>
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xl">⚠️</span>
+                        <div>
+                            <div class="text-xs font-bold text-amber-300 flex items-center gap-2">
+                                <span>Large Package Alert — Dimensional Weight Flag (Etsy & eBay Only)</span>
+                                <span class="bg-amber-900/60 text-amber-200 text-[10px] font-mono px-1.5 py-0.5 rounded border border-amber-700">${fin.ship.cubicInches} in³ (>1,728)</span>
+                            </div>
+                            <p class="text-[11px] text-slate-300 mt-0.5">
+                                If shipped in this box (${inputs.boxLength}"×${inputs.boxWidth}"×${inputs.boxHeight}"), USPS billable DIM weight is <strong class="text-amber-200 font-mono">${fin.ship.dimWeightLbs} lbs</strong> ($${fin.ship.fullDimCost.toFixed(2)} retail).
+                                On Etsy/eBay, ensure calculated shipping is used or parts are nested to keep margins clean.
+                            </p>
                         </div>
-                        <span class="text-xs font-mono px-2 py-0.5 rounded ${fin.ship.isDim ? 'bg-rose-900/40 text-rose-300 border border-rose-700' : 'bg-slate-800 text-slate-300'}">
-                            ${fin.ship.isDim ? `DIM Weight: ${fin.ship.dimWeightLbs} lbs` : `Billable Weight: ${(fin.ship.billableWeightOz / 16).toFixed(1)} lbs`}
+                    </div>
+                    <div class="shrink-0 text-right">
+                        <span class="text-xs font-mono px-2.5 py-1 rounded bg-slate-900 border border-slate-700 text-slate-300 font-semibold">
+                            ${fin.freeShippingActive ? '<span class="text-emerald-400">Free Shipping: Yes</span>' : `Customer Pays: $${inputs.shippingCharged.toFixed(2)}`}
                         </span>
                     </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs pt-1">
-                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
-                            <div class="text-slate-400 text-[11px]">USPS Label Outflow:</div>
-                            <div class="text-base font-mono font-bold text-white mt-0.5">$${fin.ship.shippingCost.toFixed(2)}</div>
-                            <div class="text-[10px] text-slate-500">${fin.ship.isDim ? 'Inflated by box volume' : 'Weight-based tier'}</div>
-                        </div>
-
-                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
-                            <div class="text-slate-400 text-[11px]">Etsy Net Margin:</div>
-                            <div class="text-base font-mono font-bold ${fin.etsy.margin >= 50 ? 'text-emerald-400' : 'text-rose-400'} mt-0.5">${fin.etsy.margin.toFixed(1)}%</div>
-                            <div class="text-[10px] text-slate-500">$${fin.etsy.net.toFixed(2)} net profit</div>
-                        </div>
-
-                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
-                            <div class="text-slate-400 text-[11px]">Mayhem Net Profit:</div>
-                            <div class="text-base font-mono font-bold text-emerald-400 mt-0.5">$${fin.mayhem.net.toFixed(2)}</div>
-                            <div class="text-[10px] text-slate-500">+$${(fin.mayhem.net - fin.etsy.net).toFixed(2)} vs Etsy</div>
-                        </div>
-
-                        <div class="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
-                            <div class="text-slate-400 text-[11px]">Machine Yield:</div>
-                            <div class="text-base font-mono font-bold text-indigo-300 mt-0.5">$${fin.machineRate.toFixed(2)}/hr</div>
-                            <div class="text-[10px] text-slate-500">${inputs.printHours}h plate occupancy</div>
-                        </div>
+                `;
+            } else if (fin.freeShippingActive) {
+                alertCard.className = "bg-indigo-950/20 border border-indigo-900/50 p-4 rounded-2xl shadow-xl flex justify-between items-center";
+                alertCard.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-indigo-400">⚡</span>
+                        <span class="text-xs text-slate-300">Free Shipping Enabled (Seller absorbs regular weight postage: <strong class="text-white font-mono">$${fin.ship.shippingCost.toFixed(2)}</strong>).</span>
                     </div>
+                    <span class="text-xs font-mono text-slate-400">Actual Weight: ${(inputs.packageWeight / 16).toFixed(1)} lbs</span>
                 `;
             } else {
                 alertCard.className = "bg-slate-900 border border-slate-800 p-4 rounded-2xl shadow-xl flex justify-between items-center";
                 alertCard.innerHTML = `
                     <div class="flex items-center gap-2">
                         <span class="text-indigo-400">📦</span>
-                        <span class="text-xs text-slate-300">Customer Charged $${inputs.shippingCharged.toFixed(2)} Shipping (Free Shipping Off).</span>
+                        <span class="text-xs text-slate-300">Customer Pays Shipping: <strong class="text-white font-mono">$${inputs.shippingCharged.toFixed(2)}</strong> (Regular weight label: $${fin.ship.shippingCost.toFixed(2)}).</span>
                     </div>
-                    <span class="text-xs font-mono text-slate-400">Label Cost: $${fin.ship.shippingCost.toFixed(2)} (${(fin.ship.billableWeightOz / 16).toFixed(1)} lbs)</span>
+                    <span class="text-xs font-mono text-slate-400">Actual Weight: ${(inputs.packageWeight / 16).toFixed(1)} lbs</span>
                 `;
             }
 
@@ -1665,8 +1675,10 @@
                 const cFin = fin.byChannel[ch.key] || { net: 0, margin: 0, fees: 0 };
                 const isMayhem = ch.key === 'Mayhem';
                 const labelColor = isMayhem ? 'text-emerald-400' : (ch.color === 'rose' ? 'text-rose-400' : (ch.color === 'cyan' ? 'text-cyan-400' : 'text-indigo-400'));
+                const isDimPlatform = (ch.key === 'Etsy' || ch.key === 'eBay') && fin.ship.isDim;
                 return `
-                    <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-1">
+                    <div class="bg-slate-950 p-3 rounded-xl border ${isDimPlatform ? 'border-amber-700/80 ring-1 ring-amber-600/40' : 'border-slate-800'} space-y-1 relative">
+                        ${isDimPlatform ? '<span class="absolute top-1.5 right-1.5 text-[9px] bg-amber-950 text-amber-400 border border-amber-800 px-1 rounded font-mono font-bold" title="DIM weight applies if actual box size used">DIM Flag</span>' : ''}
                         <div class="flex justify-between items-center">
                             <span class="font-bold ${labelColor} text-xs">${ch.key}</span>
                             <span class="text-[10px] text-slate-500">${isMayhem && cFin.fees === 0 ? '$0 cut' : `-$${cFin.fees.toFixed(2)}`}</span>
@@ -1692,7 +1704,7 @@
                 </div>
                 <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800 flex flex-col justify-center">
                     <div class="text-slate-400 text-[11px]">Mayhem Direct Spread</div>
-                    <div class="text-xs font-semibold text-emerald-300 mt-0.5">+$${(fin.mayhem.net - fin.etsy.net).toFixed(2)} / unit saved</div>
+                    <div class="text-xs font-semibold text-emerald-300 mt-0.5">+$${Math.max(0, fin.mayhem.net - fin.etsy.net).toFixed(2)} / unit saved</div>
                 </div>
             `;
         }
@@ -2952,7 +2964,7 @@
                     if (btn) {
                         icon.classList.remove('animate-spin');
                         icon.innerText = '✅';
-                        text.innerText = 'Up to Date (v2.2.2)';
+                        text.innerText = 'Up to Date (v2.2.3)';
                         setTimeout(() => {
                             if (icon) icon.innerText = '🔄';
                             if (text) text.innerText = 'Check for Updates';
