@@ -174,32 +174,35 @@ def apply_update() -> Dict[str, Any]:
         # Batch script to wait for current process exit, replace executable, and relaunch
         current_exe = Path(sys.executable).resolve()
         current_pid = os.getpid()
+        exe_name = current_exe.name
         updater_bat = temp_dir / "printops_updater.bat"
-        
+
         # Robust in-place updater script:
-        # 1. Gracefully waits or terminates current running process PID
-        # 2. Loops until the file lock on current_exe is released (up to 15 tries)
+        # 1. Terminates all instances of the app executable by image name and process tree
+        # 2. Waits and loops until the file lock on current_exe is completely released
         # 3. Overwrites current_exe with new_exe_path
-        # 4. Cleans up temp updater binary and launches the updated application
+        # 4. Cleans up temp binary and relaunches the fresh executable
         bat_content = f"""@echo off
 setlocal enabledelayedexpansion
 
-:: 1. Ensure the running app process has terminated
-taskkill /F /PID {current_pid} >nul 2>&1
-timeout /t 1 /nobreak >nul
+:: 1. Force kill all running instances of this executable tree
+taskkill /F /T /IM "{exe_name}" >nul 2>&1
+taskkill /F /T /PID {current_pid} >nul 2>&1
+timeout /t 2 /nobreak >nul
 
-:: 2. Wait for current exe file lock release
+:: 2. Wait for current exe file lock release (up to 20 seconds)
 set RETRIES=0
 :RETRY_COPY
 copy /y "{new_exe_path}" "{current_exe}" >nul 2>&1
 if not errorlevel 1 goto LAUNCH
 set /a RETRIES+=1
-if !RETRIES! geq 15 goto FAILED
+if !RETRIES! geq 20 goto FAILED
 timeout /t 1 /nobreak >nul
 goto RETRY_COPY
 
 :LAUNCH
 del /f /q "{new_exe_path}" >nul 2>&1
+timeout /t 1 /nobreak >nul
 start "" "{current_exe}"
 del "%~f0"
 exit /b 0
