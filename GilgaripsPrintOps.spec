@@ -15,6 +15,7 @@ hiddenimports = (
         "python_multipart",
         "google.genai",
         "backend.main",
+        "backend.version",
         "backend.file_manager",
         "backend.packaging",
         "backend.slicer_engine",

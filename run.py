@@ -30,6 +30,7 @@ _ensure_gui_streams()
 
 import uvicorn
 from backend.main import app
+from backend.version import APP_VERSION
 
 HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
@@ -102,7 +103,7 @@ def main() -> None:
             import webview
 
             webview.create_window(
-                title="Gilgarips PrintOps — Production Cockpit v2.1.0",
+                title=f"Gilgarips PrintOps — Production Cockpit v{APP_VERSION}",
                 url=url,
                 width=1280,
                 height=850,

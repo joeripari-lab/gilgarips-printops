@@ -14,6 +14,7 @@ from backend.packaging import solve_3d_box_fit
 from backend.slicer_engine import analyze_slicer_upload, analyze_multiple_slicer_uploads
 from backend.etsy_service import fetch_etsy_listing_images, download_image_bytes
 from backend.updater_service import check_for_updates, apply_update
+from backend.version import APP_VERSION
 
 
 def _resolve_frontend_dir() -> Path:
@@ -40,7 +41,7 @@ def _resolve_assets_dir() -> Path:
 
 app = FastAPI(
     title="Gilgarips PrintOps Desktop API",
-    version="2.3.1",
+    version=APP_VERSION,
     description="Local print-farm pricing, 3D slicer & spatial box solver, local Google Drive sync, and Gemini listing engine.",
 )
 
@@ -141,6 +142,7 @@ async def get_full_state():
     catalog_state = file_manager.get_catalog_state()
     settings = file_manager.get_settings()
     return {
+        "app_version": APP_VERSION,
         "catalog": catalog_state["catalog"],
         "uploadedMonths": catalog_state["uploadedMonths"],
         "printQueue": catalog_state.get("printQueue", []),
@@ -267,6 +269,7 @@ async def update_settings(settings_payload: Dict[str, Any]):
         "settings": updated_settings,
         "catalog": catalog_state["catalog"],
         "uploadedMonths": catalog_state["uploadedMonths"],
+        "printQueue": catalog_state.get("printQueue", []),
     }
 
 
@@ -280,7 +283,8 @@ async def pick_storage_directory():
         import webview
 
         if webview.windows:
-            result = webview.windows[0].create_file_dialog(webview.FOLDER_DIALOG)
+            folder_dialog = getattr(getattr(webview, "FileDialog", None), "FOLDER", None) or webview.FOLDER_DIALOG
+            result = webview.windows[0].create_file_dialog(folder_dialog)
             if result and len(result) > 0:
                 selected_dir = result[0]
     except Exception:
@@ -319,6 +323,7 @@ async def pick_storage_directory():
         "settings": updated_settings,
         "catalog": catalog_state["catalog"],
         "uploadedMonths": catalog_state["uploadedMonths"],
+        "printQueue": catalog_state.get("printQueue", []),
     }
 
 

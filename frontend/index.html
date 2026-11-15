@@ -22,8 +22,8 @@
                         class="w-12 h-12 rounded-xl shadow-lg border border-slate-700/80 shrink-0">
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                            Gilgarips PrintOps <span
-                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.3.1
+                            Gilgarips PrintOps <span id="headerVersionBadge"
+                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.4.0
                                 Desktop</span>
                         </h1>
                         <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver,
@@ -872,7 +872,7 @@
                 </div>
                 <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
                     <div class="text-xs text-slate-400">
-                        Application Version: <strong class="text-white font-mono">v2.3.1</strong>
+                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.4.0</strong>
                         <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
                     </div>
                     <button type="button" onclick="handleAppUpdateCheck(true)"
@@ -1025,6 +1025,7 @@
     </div>
 
     <script>
+        let appVersion = '2.4.0';
         let catalog = [];
         let printQueue = [];
         let uploadedMonths = { "Jan": false, "Feb": false, "Mar": false, "Apr": false, "May": false, "Jun": false, "Jul": false, "Aug": false, "Sep": false, "Oct": false, "Nov": false, "Dec": false };
@@ -1411,6 +1412,7 @@
                 const res = await fetch('/api/state');
                 if (res.ok) {
                     const data = await res.json();
+                    if (data.app_version) appVersion = data.app_version;
                     catalog = data.catalog || [];
                     uploadedMonths = data.uploadedMonths || uploadedMonths;
                     printQueue = data.printQueue || [];
@@ -1432,6 +1434,11 @@
         }
 
         function syncSettingsToUI() {
+            const headerBadge = document.getElementById('headerVersionBadge');
+            if (headerBadge) headerBadge.innerText = `v${appVersion} Desktop`;
+            const adminVer = document.getElementById('adminAppVersion');
+            if (adminVer) adminVer.innerText = `v${appVersion}`;
+
             document.getElementById('headerStorageRoot').innerText = appSettings.storage_root || 'Local Default';
             document.getElementById('autoDownloadToggle').checked = !!appSettings.auto_download_json;
 
@@ -3210,7 +3217,7 @@
                     if (btn) {
                         icon.classList.remove('animate-spin');
                         icon.innerText = '✅';
-                        text.innerText = `Up to Date (v${info.current_version || '2.3.1'})`;
+                        text.innerText = `Up to Date (v${data.current_version || appVersion})`;
                         setTimeout(() => {
                             if (icon) icon.innerText = '🔄';
                             if (text) text.innerText = 'Check for Updates';
@@ -3236,33 +3243,49 @@
 
         async function handleAppUpdateApply(updateData) {
             const btn = document.getElementById('btnCheckUpdate');
+            const icon = document.getElementById('updateIcon');
             const text = document.getElementById('updateBtnText');
+            const statusEl = document.getElementById('adminUpdateStatusText');
             if (btn) {
                 btn.disabled = true;
-                text.innerText = 'Downloading & Applying Update...';
+                if (icon) {
+                    icon.innerText = '⏳';
+                    icon.classList.add('animate-spin');
+                }
+                text.innerText = 'Downloading Update...';
             }
+            if (statusEl) statusEl.innerText = 'Downloading and installing update...';
 
             try {
                 const res = await fetch('/api/update/apply', { method: 'POST' });
                 const result = await res.json();
                 if (result.success) {
-                    if (btn) text.innerText = 'Restarting App...';
-                    alert(result.message || "Update successfully applied! The application is restarting.");
-                    // Give batch updater a moment, then attempt reload if still in web browser view
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 2500);
+                    if (btn) text.innerText = 'Installing & Restarting...';
+                    if (statusEl) statusEl.innerHTML = `<span class="text-emerald-400 font-semibold">${result.message || 'Installing update and restarting...'}</span>`;
+                    if (result.type === 'git') {
+                        setTimeout(() => window.location.reload(), 1500);
+                    }
+                    // For packaged binary updates, do NOT block pywebview with alert();
+                    // the backend gracefully closes the window so the installer runs and relaunches.
                 } else {
+                    if (btn) {
+                        btn.disabled = false;
+                        if (icon) {
+                            icon.classList.remove('animate-spin');
+                            icon.innerText = '⚠️';
+                        }
+                        text.innerText = 'Update Failed';
+                    }
+                    if (statusEl) statusEl.innerText = `Update failed: ${result.error || 'Unknown error'}`;
                     alert("Update failed: " + (result.error || "Unknown error"));
                     if (result.release_url) {
                         window.open(result.release_url, '_blank');
                     }
                 }
             } catch (err) {
-                // Network error when app is restarting is normal
+                // Network error when app is restarting is expected
                 console.log("App restarting:", err);
-            } finally {
-                if (btn) btn.disabled = false;
+                if (btn) text.innerText = 'Restarting...';
             }
         }
 
