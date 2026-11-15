@@ -308,8 +308,8 @@ class FileManager:
     def change_storage_root(self, new_root: Path) -> Path:
         """
         Switches the Master Storage Directory to new_root.
-        If new_root doesn't have catalog_state.json or settings.json yet,
-        copies existing state over so user data is never lost when switching directories.
+        If new_root doesn't have catalog_state.json, settings.json, or product files yet,
+        copies existing state and product assets over so user data is never lost when switching directories.
         """
         old_root = self.storage_root
         new_root.mkdir(parents=True, exist_ok=True)
@@ -324,6 +324,16 @@ class FileManager:
         new_settings = new_root / "settings.json"
         if old_settings.exists() and not new_settings.exists():
             shutil.copy2(old_settings, new_settings)
+
+        # Copy existing product files (photos, gcodes, metadata) if destination is empty
+        old_products = old_root / "products"
+        new_products = new_root / "products"
+        if old_products.exists():
+            for item_dir in old_products.iterdir():
+                if item_dir.is_dir():
+                    dest_item_dir = new_products / item_dir.name
+                    if not dest_item_dir.exists():
+                        shutil.copytree(item_dir, dest_item_dir)
 
         self.storage_root = new_root
         self._save_bootstrap_root(new_root)
