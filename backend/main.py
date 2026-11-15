@@ -40,7 +40,7 @@ def _resolve_assets_dir() -> Path:
 
 app = FastAPI(
     title="Gilgarips PrintOps Desktop API",
-    version="2.2.4",
+    version="2.2.5",
     description="Local print-farm pricing, 3D slicer & spatial box solver, local Google Drive sync, and Gemini listing engine.",
 )
 
@@ -77,6 +77,11 @@ class EtsyIngestRequest(BaseModel):
 class CatalogSyncRequest(BaseModel):
     catalog: List[Dict[str, Any]]
     uploadedMonths: Optional[Dict[str, bool]] = None
+    printQueue: Optional[List[Dict[str, Any]]] = None
+
+
+class PrintQueueUpdateRequest(BaseModel):
+    printQueue: List[Dict[str, Any]]
 
 
 class MonthsUpdateRequest(BaseModel):
@@ -138,6 +143,7 @@ async def get_full_state():
     return {
         "catalog": catalog_state["catalog"],
         "uploadedMonths": catalog_state["uploadedMonths"],
+        "printQueue": catalog_state.get("printQueue", []),
         "settings": settings,
     }
 
@@ -147,10 +153,12 @@ async def save_catalog(req: CatalogSyncRequest):
     """Persists full catalog array and uploadedMonths to <root>/catalog_state.json and scaffolds product folders."""
     current_state = file_manager.get_catalog_state()
     months = req.uploadedMonths if req.uploadedMonths is not None else current_state["uploadedMonths"]
+    queue = req.printQueue if req.printQueue is not None else current_state.get("printQueue", [])
     saved = file_manager.save_catalog_state(
         {
             "catalog": req.catalog,
             "uploadedMonths": months,
+            "printQueue": queue,
         }
     )
     return saved
@@ -197,6 +205,7 @@ async def save_single_item(req: SaveItemRequest):
         {
             "catalog": catalog,
             "uploadedMonths": state["uploadedMonths"],
+            "printQueue": state.get("printQueue", []),
         }
     )
     return {"item": item, "catalog": saved["catalog"]}
@@ -213,6 +222,7 @@ async def delete_item(index: int):
         {
             "catalog": catalog,
             "uploadedMonths": state["uploadedMonths"],
+            "printQueue": state.get("printQueue", []),
         }
     )
     return {"deleted": removed, "catalog": saved["catalog"]}
@@ -224,6 +234,20 @@ async def update_months(req: MonthsUpdateRequest):
     state["uploadedMonths"] = req.uploadedMonths
     saved = file_manager.save_catalog_state(state)
     return {"uploadedMonths": saved["uploadedMonths"]}
+
+
+@app.get("/api/queue")
+async def get_print_queue():
+    state = file_manager.get_catalog_state()
+    return {"printQueue": state.get("printQueue", [])}
+
+
+@app.post("/api/queue")
+async def update_print_queue(req: PrintQueueUpdateRequest):
+    state = file_manager.get_catalog_state()
+    state["printQueue"] = req.printQueue
+    saved = file_manager.save_catalog_state(state)
+    return {"printQueue": saved.get("printQueue", [])}
 
 
 @app.get("/api/settings")

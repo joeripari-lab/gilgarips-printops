@@ -338,16 +338,19 @@ class FileManager:
                 state = {
                     "catalog": raw,
                     "uploadedMonths": dict(DEFAULT_MONTHS),
+                    "printQueue": [],
                 }
             else:
                 state = {
                     "catalog": raw.get("catalog", []),
                     "uploadedMonths": {**DEFAULT_MONTHS, **raw.get("uploadedMonths", {})},
+                    "printQueue": raw.get("printQueue", []),
                 }
         except Exception:
             state = {
                 "catalog": [],
                 "uploadedMonths": dict(DEFAULT_MONTHS),
+                "printQueue": [],
             }
 
         # Enrich every item with its slug, photos list, and gcode files from disk
@@ -359,6 +362,7 @@ class FileManager:
     def save_catalog_state(self, state: Dict[str, Any]) -> Dict[str, Any]:
         catalog_list = state.get("catalog", [])
         uploaded_months = {**DEFAULT_MONTHS, **(state.get("uploadedMonths") or {})}
+        print_queue = state.get("printQueue", [])
 
         for item in catalog_list:
             self.scaffold_product_directory(item)
@@ -366,6 +370,7 @@ class FileManager:
         payload = {
             "catalog": catalog_list,
             "uploadedMonths": uploaded_months,
+            "printQueue": print_queue,
             "updatedAt": datetime.now().isoformat(),
         }
         self.catalog_path.write_text(

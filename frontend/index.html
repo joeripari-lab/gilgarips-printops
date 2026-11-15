@@ -23,7 +23,7 @@
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                             Gilgarips PrintOps <span
-                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.2.4
+                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.2.5
                                 Desktop</span>
                         </h1>
                         <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver,
@@ -420,6 +420,74 @@
             <!-- Right Column: Visual Margin Drag, Live Matrix & Fees -->
             <div class="lg:col-span-2 space-y-6">
 
+                <!-- Print Production Queue / Checklist -->
+                <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800/80 pb-3">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-xl">📋</span>
+                            <div>
+                                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                                    Print Production Checklist
+                                    <span id="queueStatsBadge" class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">0 pending</span>
+                                </h3>
+                                <p class="text-xs text-slate-400">Queue items from catalog or add custom print jobs with quantities & due dates.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="clearCompletedQueueItems()" class="text-[11px] text-slate-400 hover:text-slate-200 bg-slate-950/60 hover:bg-slate-800 border border-slate-800 px-2.5 py-1.5 rounded-lg transition">
+                                Clear Done
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Add Job Row -->
+                    <div class="bg-slate-950/70 border border-slate-800/80 p-3 rounded-xl grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                        <div class="sm:col-span-5">
+                            <label class="block text-[11px] text-slate-400 mb-1">Item Name / From Catalog</label>
+                            <div class="relative">
+                                <input type="text" id="queueItemNameInput" list="queueCatalogDatalist" placeholder="Select or type item name..."
+                                    class="w-full bg-slate-900 border border-slate-750 border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                                <datalist id="queueCatalogDatalist"></datalist>
+                            </div>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-[11px] text-slate-400 mb-1">Qty (How Many)</label>
+                            <input type="number" id="queueQtyInput" value="1" min="1" max="999"
+                                class="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-indigo-500 text-center">
+                        </div>
+                        <div class="sm:col-span-3">
+                            <label class="block text-[11px] text-slate-400 mb-1">Due Date</label>
+                            <input type="date" id="queueDueDateInput"
+                                class="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <button onclick="addPrintQueueItem()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow transition flex items-center justify-center gap-1">
+                                <span>➕ Add Job</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Checklist Table / Items List -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs">
+                            <thead>
+                                <tr class="text-slate-400 border-b border-slate-800 text-[11px] uppercase tracking-wider">
+                                    <th class="py-2 px-3 w-10 text-center">Status</th>
+                                    <th class="py-2 px-3">Item to Print</th>
+                                    <th class="py-2 px-3 w-20 text-center">Qty</th>
+                                    <th class="py-2 px-3 w-32">Due Date</th>
+                                    <th class="py-2 px-3 w-16 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="printQueueTableBody" class="divide-y divide-slate-800/60">
+                                <tr>
+                                    <td colspan="5" class="py-6 text-center text-slate-500">No print jobs queued yet. Add one above!</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Free Shipping & DIM Alert -->
                 <div id="dimAlertCard"
                     class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl transition space-y-3"></div>
@@ -804,7 +872,7 @@
                 </div>
                 <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
                     <div class="text-xs text-slate-400">
-                        Application Version: <strong class="text-white font-mono">v2.2.4</strong>
+                        Application Version: <strong class="text-white font-mono">v2.2.5</strong>
                         <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
                     </div>
                     <button type="button" onclick="handleAppUpdateCheck(true)"
@@ -958,6 +1026,7 @@
 
     <script>
         let catalog = [];
+        let printQueue = [];
         let uploadedMonths = { "Jan": false, "Feb": false, "Mar": false, "Apr": false, "May": false, "Jun": false, "Jul": false, "Aug": false, "Sep": false, "Oct": false, "Nov": false, "Dec": false };
         let appSettings = {
             storage_root: "",
@@ -1344,6 +1413,7 @@
                     const data = await res.json();
                     catalog = data.catalog || [];
                     uploadedMonths = data.uploadedMonths || uploadedMonths;
+                    printQueue = data.printQueue || [];
                     if (data.settings) {
                         appSettings = data.settings;
                     }
@@ -1355,6 +1425,7 @@
             syncSettingsToUI();
             calculateAll();
             renderCatalog();
+            renderPrintQueue();
             renderPatreonCards();
             renderPlatformTotalFees();
             renderMonthsGrid();
@@ -1845,7 +1916,7 @@
                 const res = await fetch('/api/catalog', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ catalog, uploadedMonths })
+                    body: JSON.stringify({ catalog, uploadedMonths, printQueue })
                 });
                 if (res.ok) {
                     const saved = await res.json();
@@ -2148,6 +2219,172 @@
             }
         }
 
+        // ==================== PRINT PRODUCTION QUEUE / CHECKLIST ====================
+        function updateQueueCatalogDatalist() {
+            const dl = document.getElementById('queueCatalogDatalist');
+            if (!dl) return;
+            const seen = new Set();
+            let options = '';
+            (catalog || []).forEach(item => {
+                const name = (item.name || '').trim();
+                if (name && !seen.has(name)) {
+                    seen.add(name);
+                    options += `<option value="${escapeHtml(name)}">${escapeHtml(item.patreonSource ? item.patreonSource + ' - ' + name : name)}</option>`;
+                }
+            });
+            dl.innerHTML = options;
+        }
+
+        function renderPrintQueue() {
+            updateQueueCatalogDatalist();
+            const tbody = document.getElementById('printQueueTableBody');
+            const statsBadge = document.getElementById('queueStatsBadge');
+            if (!tbody) return;
+
+            const pendingCount = (printQueue || []).filter(q => !q.completed).length;
+            if (statsBadge) {
+                statsBadge.innerText = `${pendingCount} pending`;
+                if (pendingCount === 0) {
+                    statsBadge.className = 'text-xs bg-emerald-500/20 text-emerald-300 font-mono px-2 py-0.5 rounded-full border border-emerald-500/30';
+                } else {
+                    statsBadge.className = 'text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30';
+                }
+            }
+
+            if (!printQueue || printQueue.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500">No print jobs queued yet. Add one above!</td></tr>`;
+                return;
+            }
+
+            const today = new Date().toISOString().split('T')[0];
+
+            tbody.innerHTML = printQueue.map((job, idx) => {
+                const isDone = !!job.completed;
+                const isOverdue = !isDone && job.dueDate && job.dueDate < today;
+                const isDueToday = !isDone && job.dueDate === today;
+
+                let dateBadge = `<span class="text-slate-500 text-[11px]">—</span>`;
+                if (job.dueDate) {
+                    if (isDone) {
+                        dateBadge = `<span class="text-slate-500 line-through">${job.dueDate}</span>`;
+                    } else if (isOverdue) {
+                        dateBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-500/20 text-rose-300 border border-rose-500/40">⚠️ Overdue (${job.dueDate})</span>`;
+                    } else if (isDueToday) {
+                        dateBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">⏰ Due Today</span>`;
+                    } else {
+                        dateBadge = `<span class="text-slate-300 font-mono text-[11px]">${job.dueDate}</span>`;
+                    }
+                }
+
+                // Check if item exists in catalog to show quick load link
+                const catalogMatchIndex = (catalog || []).findIndex(c => (c.name || '').trim().toLowerCase() === (job.name || '').trim().toLowerCase());
+
+                return `
+                    <tr class="hover:bg-slate-800/40 transition group ${isDone ? 'opacity-50 bg-slate-950/30' : ''}">
+                        <td class="py-2.5 px-3 text-center">
+                            <input type="checkbox" ${isDone ? 'checked' : ''} onchange="togglePrintQueueItem(${idx})"
+                                class="w-4 h-4 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0 cursor-pointer accent-indigo-600">
+                        </td>
+                        <td class="py-2.5 px-3">
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium ${isDone ? 'line-through text-slate-500' : 'text-slate-200'}">${escapeHtml(job.name)}</span>
+                                ${catalogMatchIndex >= 0 ? `
+                                    <button onclick="loadItemIntoForm(${catalogMatchIndex})" title="Load into Item & Print Estimator"
+                                        class="opacity-0 group-hover:opacity-100 text-[10px] bg-slate-800 hover:bg-slate-700 text-indigo-300 px-1.5 py-0.5 rounded border border-slate-700 transition">
+                                        ⚡ Estimator
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                        <td class="py-2.5 px-3 text-center font-mono font-bold ${isDone ? 'text-slate-500' : 'text-white'}">
+                            ${job.qty || 1}
+                        </td>
+                        <td class="py-2.5 px-3">
+                            ${dateBadge}
+                        </td>
+                        <td class="py-2.5 px-3 text-right">
+                            <button onclick="removePrintQueueItem(${idx})" title="Delete job"
+                                class="text-slate-500 hover:text-rose-400 p-1 rounded hover:bg-rose-500/10 transition">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function addPrintQueueItem() {
+            const nameInput = document.getElementById('queueItemNameInput');
+            const qtyInput = document.getElementById('queueQtyInput');
+            const dateInput = document.getElementById('queueDueDateInput');
+
+            const name = (nameInput.value || '').trim();
+            if (!name) {
+                alert("Please select or type an item name to print.");
+                nameInput.focus();
+                return;
+            }
+
+            const qty = parseInt(qtyInput.value, 10) || 1;
+            const dueDate = (dateInput.value || '').trim();
+
+            const newJob = {
+                id: 'job_' + Date.now(),
+                name,
+                qty,
+                dueDate,
+                completed: false,
+                createdAt: new Date().toISOString()
+            };
+
+            printQueue.unshift(newJob);
+            renderPrintQueue();
+
+            // Clear inputs
+            nameInput.value = '';
+            qtyInput.value = '1';
+            dateInput.value = '';
+
+            await syncPrintQueueToBackend();
+        }
+
+        async function togglePrintQueueItem(index) {
+            if (index < 0 || index >= printQueue.length) return;
+            printQueue[index].completed = !printQueue[index].completed;
+            renderPrintQueue();
+            await syncPrintQueueToBackend();
+        }
+
+        async function removePrintQueueItem(index) {
+            if (index < 0 || index >= printQueue.length) return;
+            printQueue.splice(index, 1);
+            renderPrintQueue();
+            await syncPrintQueueToBackend();
+        }
+
+        async function clearCompletedQueueItems() {
+            const initialCount = printQueue.length;
+            printQueue = printQueue.filter(q => !q.completed);
+            if (printQueue.length !== initialCount) {
+                renderPrintQueue();
+                await syncPrintQueueToBackend();
+            }
+        }
+
+        async function syncPrintQueueToBackend() {
+            try {
+                await fetch('/api/queue', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ printQueue })
+                });
+            } catch (err) {
+                console.warn("Failed to persist print queue to server:", err);
+            }
+        }
+
         async function openStorageFolder(slug = null, event = null) {
             if (event) event.stopPropagation();
             try {
@@ -2160,6 +2397,9 @@
         }
 
         function renderCatalog() {
+            // Keep print queue catalog datalist updated
+            updateQueueCatalogDatalist();
+
             const tbody = document.getElementById('catalogTableBody');
             const searchInput = (document.getElementById('catalogSearch')?.value || '').trim().toLowerCase();
             const shouldFilter = searchInput.length >= 3;
@@ -2900,6 +3140,11 @@
                         uploadedMonths = parsed.uploadedMonths;
                         persistMonths();
                     }
+                    if (parsed.printQueue) {
+                        printQueue = parsed.printQueue;
+                        syncPrintQueueToBackend();
+                        renderPrintQueue();
+                    }
                     persistCatalog();
                     alert(`Restored and scaffolded ${catalog.length} items from backup.`);
                 } catch (err) {
@@ -2913,6 +3158,7 @@
             const backupPayload = {
                 catalog,
                 uploadedMonths,
+                printQueue,
                 exportedAt: new Date().toISOString()
             };
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
@@ -2964,7 +3210,7 @@
                     if (btn) {
                         icon.classList.remove('animate-spin');
                         icon.innerText = '✅';
-                        text.innerText = `Up to Date (v${info.current_version || '2.2.4'})`;
+                        text.innerText = `Up to Date (v${info.current_version || '2.2.5'})`;
                         setTimeout(() => {
                             if (icon) icon.innerText = '🔄';
                             if (text) text.innerText = 'Check for Updates';
