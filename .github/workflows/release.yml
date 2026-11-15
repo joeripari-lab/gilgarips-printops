@@ -30,36 +30,47 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Build Single-File Standalone Executable
+      - name: Build Application Directory via PyInstaller
         run: |
-          python -m PyInstaller --noconfirm --clean GilgaripsPrintOps_SingleFile.spec
+          python -m PyInstaller --noconfirm --clean GilgaripsPrintOps.spec
 
-      - name: Verify Executable Built
+      - name: Verify PyInstaller Directory Built
         run: |
-          if (Test-Path "dist\GilgaripsPrintOps.exe") {
-            Write-Host "GilgaripsPrintOps.exe successfully created!"
-            Get-Item "dist\GilgaripsPrintOps.exe" | Select-Object Name, Length
+          if (Test-Path "dist\GilgaripsPrintOps\GilgaripsPrintOps.exe") {
+            Write-Host "GilgaripsPrintOps.exe successfully created in dist\GilgaripsPrintOps!"
+            Get-Item "dist\GilgaripsPrintOps\GilgaripsPrintOps.exe" | Select-Object Name, Length
           } else {
-            Write-Error "dist\GilgaripsPrintOps.exe was not found"
+            Write-Error "dist\GilgaripsPrintOps\GilgaripsPrintOps.exe was not found"
+            exit 1
+          }
+
+      - name: Compile Inno Setup Windows Installer
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion=$version installer.iss
+        shell: pwsh
+
+      - name: Verify Installer Built
+        run: |
+          if (Test-Path "dist-installer\GilgaripsPrintOps-Setup.exe") {
+            Write-Host "GilgaripsPrintOps-Setup.exe successfully created!"
+            Get-Item "dist-installer\GilgaripsPrintOps-Setup.exe" | Select-Object Name, Length
+          } else {
+            Write-Error "dist-installer\GilgaripsPrintOps-Setup.exe was not found"
             exit 1
           }
 
       - name: Create GitHub Release and Upload Binary Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/GilgaripsPrintOps.exe
+          files: dist-installer/GilgaripsPrintOps-Setup.exe
           tag_name: ${{ github.ref_name }}
           name: Gilgarips PrintOps ${{ github.ref_name }}
           body: |
-            ### Gilgarips PrintOps Desktop Application
-            
-            **What's New in this Release:**
-            - 🧩 **Multi-G-Code & Multi-Plate Print Parsing**: Support for multi-plate 3D prints, summing grams/hours, finding max part footprint for box fitting, and plate breakdown table.
-            - 🌐 **Etsy Listing Photo Ingestion**: Pull high-res listing images directly from an Etsy URL or pasted source into product folders.
-            - 🔄 **In-App Auto-Updater**: Header and Admin Center update checks to pull updates automatically.
+            ### Gilgarips PrintOps Desktop Application Installer
             
             **Installation:**
-            Download `GilgaripsPrintOps.exe` below and run directly on Windows.
+            Download and run **`GilgaripsPrintOps-Setup.exe`** below. It installs into your personal Windows user directory (`AppData\Local\Programs\Gilgarips PrintOps`) with start menu shortcuts, no admin elevation required, and supports seamless in-app auto-updates.
           draft: false
           prerelease: false
         env:

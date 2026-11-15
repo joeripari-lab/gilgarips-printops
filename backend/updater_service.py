@@ -8,7 +8,7 @@ import urllib.request
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-APP_VERSION = "2.2.5"
+APP_VERSION = "2.3.0"
 GITHUB_REPO = "joeripari-lab/gilgarips-printops"
 GITHUB_API_URL = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
 USER_AGENT = "GilgaripsPrintOps-Updater"
@@ -73,13 +73,19 @@ def check_for_updates() -> Dict[str, Any]:
                 
                 # Compare semantic versions (e.g., 2.1.0 vs 2.2.0)
                 if latest_tag and _is_newer_version(latest_tag, APP_VERSION):
-                    # Look for executable asset if available
+                    # Look for installer first (GilgaripsPrintOps-Setup.exe), fallback to standalone .exe
                     assets = data.get("assets", [])
+                    installer_asset = None
                     exe_asset = None
                     for asset in assets:
-                        if asset.get("name", "").endswith(".exe"):
+                        name = asset.get("name", "")
+                        if "setup" in name.lower() and name.endswith(".exe"):
+                            installer_asset = asset.get("browser_download_url")
+                        elif name.endswith(".exe"):
                             exe_asset = asset.get("browser_download_url")
-                            break
+
+                    download_target = installer_asset or exe_asset
+                    is_installer = bool(installer_asset)
 
                     return {
                         "update_available": True,
@@ -88,7 +94,8 @@ def check_for_updates() -> Dict[str, Any]:
                         "latest_version": latest_tag,
                         "release_notes": body,
                         "release_url": html_url,
-                        "download_url": exe_asset or html_url,
+                        "download_url": download_target or html_url,
+                        "is_installer": is_installer,
                         "message": f"Version v{latest_tag} is available!",
                     }
     except Exception as exc:
@@ -151,38 +158,57 @@ def apply_update() -> Dict[str, Any]:
         except Exception as exc:
             return {"success": False, "type": "git", "error": str(exc)}
 
-    # Case B: Standalone Windows .exe binary
+    # Case B: Windows application (Installer or standalone .exe)
     update_info = check_for_updates()
     download_url = update_info.get("download_url")
+    is_installer = update_info.get("is_installer", False)
     if not download_url or not download_url.endswith(".exe"):
         return {
             "success": False,
             "type": "binary",
-            "error": "No standalone .exe asset attached to the latest release.",
+            "error": "No .exe asset attached to the latest release.",
             "release_url": update_info.get("release_url", f"https://github.com/{GITHUB_REPO}/releases"),
         }
 
     try:
         temp_dir = Path(tempfile.gettempdir())
-        new_exe_path = temp_dir / "GilgaripsPrintOps_Update.exe"
+        target_filename = "GilgaripsPrintOps_Setup_Update.exe" if is_installer else "GilgaripsPrintOps_Update.exe"
+        new_exe_path = temp_dir / target_filename
         
         req = urllib.request.Request(download_url, headers={"User-Agent": USER_AGENT})
-        with urllib.request.urlopen(req, timeout=60) as resp, open(new_exe_path, "wb") as out_f:
+        with urllib.request.urlopen(req, timeout=90) as resp, open(new_exe_path, "wb") as out_f:
             while chunk := resp.read(65536):
                 out_f.write(chunk)
 
-        # Batch script to wait for current process exit, replace executable, and relaunch
+        # Batch script to wait for current process exit, replace or run installer, and restart
         current_exe = Path(sys.executable).resolve()
         current_pid = os.getpid()
         exe_name = current_exe.name
         updater_bat = temp_dir / "printops_updater.bat"
 
-        # Robust in-place updater script:
-        # 1. Terminates all instances of the app executable by image name and process tree
-        # 2. Waits and loops until the file lock on current_exe is completely released
-        # 3. Overwrites current_exe with new_exe_path
-        # 4. Cleans up temp binary and relaunches the fresh executable
-        bat_content = f"""@echo off
+        if is_installer:
+            # When an Inno Setup installer is available:
+            # Run the installer silently (/SILENT /NORESTART /CLOSEAPPLICATIONS) which cleanly installs
+            # into %LOCALAPPDATA%\Programs\Gilgarips PrintOps and launches the updated app.
+            bat_content = f"""@echo off
+setlocal enabledelayedexpansion
+
+:: 1. Force kill current running instance so installer can update binaries cleanly
+taskkill /F /T /IM "{exe_name}" >nul 2>&1
+taskkill /F /T /PID {current_pid} >nul 2>&1
+timeout /t 2 /nobreak >nul
+
+:: 2. Execute the Inno Setup installer silently
+start "" /wait "{new_exe_path}" /SILENT /NORESTART /CLOSEAPPLICATIONS
+
+:: 3. Clean up the installer download and script
+del /f /q "{new_exe_path}" >nul 2>&1
+del "%~f0"
+exit /b 0
+"""
+        else:
+            # Standalone binary swap fallback
+            bat_content = f"""@echo off
 setlocal enabledelayedexpansion
 
 :: 1. Force kill all running instances of this executable tree
@@ -219,11 +245,9 @@ exit /b 1
             close_fds=True,
         )
 
-        # Cleanly trigger self-termination so PyInstaller unwinds gracefully without error
         def _delayed_exit():
             import time
             time.sleep(0.5)
-            # Try soft exit first, fallback to os._exit
             try:
                 os._exit(0)
             except Exception:
@@ -234,7 +258,7 @@ exit /b 1
         return {
             "success": True,
             "type": "binary",
-            "message": "Update downloaded. The application is restarting with the latest release...",
+            "message": "Update downloaded. The application is installing the latest version and restarting...",
             "restart_required": True,
         }
     except Exception as exc:
