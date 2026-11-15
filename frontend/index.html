@@ -23,7 +23,7 @@
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                             Gilgarips PrintOps <span id="headerVersionBadge"
-                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.4.0
+                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.4.1
                                 Desktop</span>
                         </h1>
                         <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver,
@@ -872,7 +872,7 @@
                 </div>
                 <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
                     <div class="text-xs text-slate-400">
-                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.4.0</strong>
+                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.4.1</strong>
                         <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
                     </div>
                     <button type="button" onclick="handleAppUpdateCheck(true)"
@@ -1025,7 +1025,7 @@
     </div>
 
     <script>
-        let appVersion = '2.4.0';
+        let appVersion = '2.4.1';
         let catalog = [];
         let printQueue = [];
         let uploadedMonths = { "Jan": false, "Feb": false, "Mar": false, "Apr": false, "May": false, "Jun": false, "Jul": false, "Aug": false, "Sep": false, "Oct": false, "Nov": false, "Dec": false };
@@ -2227,6 +2227,15 @@
         }
 
         // ==================== PRINT PRODUCTION QUEUE / CHECKLIST ====================
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function updateQueueCatalogDatalist() {
             const dl = document.getElementById('queueCatalogDatalist');
             if (!dl) return;
@@ -2492,7 +2501,7 @@
                             </div>
                         </td>
                         <td class="p-3 font-mono text-slate-300 font-semibold">$${fin.directCost.toFixed(2)}</td>
-                        <td class="p-3 font-mono text-white">$${item.salePrice.toFixed(2)}</td>
+                        <td class="p-3 font-mono text-white">$${(Number(item.salePrice) || 0).toFixed(2)}</td>
                         <td class="p-3" onclick="event.stopPropagation()">
                             <input type="number" min="0" value="${stock}" onchange="updateInlineStock(event, ${index}, this.value)" class="w-12 bg-slate-950 border ${stock > 0 ? 'border-slate-800 text-emerald-400' : 'border-rose-900 text-rose-400'} rounded px-1.5 py-0.5 text-center font-mono">
                         </td>
