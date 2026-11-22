@@ -23,7 +23,7 @@
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                             Gilgarips PrintOps <span id="headerVersionBadge"
-                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.5.0
+                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.5.1
                                 Desktop</span>
                         </h1>
                         <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver,
@@ -422,30 +422,37 @@
 
                 <!-- Print Production Queue / Checklist -->
                 <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl shadow-xl space-y-4">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800/80 pb-3">
+                    <div
+                        class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800/80 pb-3">
                         <div class="flex items-center gap-2.5">
                             <span class="text-xl">📋</span>
                             <div>
                                 <h3 class="text-base font-bold text-white flex items-center gap-2">
                                     Print Production Checklist
-                                    <span id="queueStatsBadge" class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">0 pending</span>
+                                    <span id="queueStatsBadge"
+                                        class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">0
+                                        pending</span>
                                 </h3>
-                                <p class="text-xs text-slate-400">Queue items from catalog or add custom print jobs with quantities & due dates.</p>
+                                <p class="text-xs text-slate-400">Queue items from catalog or add custom print jobs with
+                                    quantities & due dates.</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button onclick="clearCompletedQueueItems()" class="text-[11px] text-slate-400 hover:text-slate-200 bg-slate-950/60 hover:bg-slate-800 border border-slate-800 px-2.5 py-1.5 rounded-lg transition">
+                            <button onclick="clearCompletedQueueItems()"
+                                class="text-[11px] text-slate-400 hover:text-slate-200 bg-slate-950/60 hover:bg-slate-800 border border-slate-800 px-2.5 py-1.5 rounded-lg transition">
                                 Clear Done
                             </button>
                         </div>
                     </div>
 
                     <!-- Add Job Row -->
-                    <div class="bg-slate-950/70 border border-slate-800/80 p-3 rounded-xl grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                    <div
+                        class="bg-slate-950/70 border border-slate-800/80 p-3 rounded-xl grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
                         <div class="sm:col-span-5">
                             <label class="block text-[11px] text-slate-400 mb-1">Item Name / From Catalog</label>
                             <div class="relative">
-                                <input type="text" id="queueItemNameInput" list="queueCatalogDatalist" placeholder="Select or type item name..."
+                                <input type="text" id="queueItemNameInput" list="queueCatalogDatalist"
+                                    placeholder="Select or type item name..."
                                     class="w-full bg-slate-900 border border-slate-750 border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
                                 <datalist id="queueCatalogDatalist"></datalist>
                             </div>
@@ -461,7 +468,8 @@
                                 class="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500">
                         </div>
                         <div class="sm:col-span-2">
-                            <button onclick="addPrintQueueItem()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow transition flex items-center justify-center gap-1">
+                            <button onclick="addPrintQueueItem()"
+                                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold py-1.5 px-3 rounded-lg shadow transition flex items-center justify-center gap-1">
                                 <span>➕ Add Job</span>
                             </button>
                         </div>
@@ -471,7 +479,8 @@
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs">
                             <thead>
-                                <tr class="text-slate-400 border-b border-slate-800 text-[11px] uppercase tracking-wider">
+                                <tr
+                                    class="text-slate-400 border-b border-slate-800 text-[11px] uppercase tracking-wider">
                                     <th class="py-2 px-3 w-10 text-center">Status</th>
                                     <th class="py-2 px-3">Item to Print</th>
                                     <th class="py-2 px-3 w-20 text-center">Qty</th>
@@ -481,7 +490,8 @@
                             </thead>
                             <tbody id="printQueueTableBody" class="divide-y divide-slate-800/60">
                                 <tr>
-                                    <td colspan="5" class="py-6 text-center text-slate-500">No print jobs queued yet. Add one above!</td>
+                                    <td colspan="5" class="py-6 text-center text-slate-500">No print jobs queued yet.
+                                        Add one above!</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -575,19 +585,31 @@
             <div
                 class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-3">
                 <div class="flex items-center gap-3">
-                    <h2 class="text-lg font-semibold text-indigo-300">Catalog Operations & Local Disk Assets</h2>
+                    <button type="button" onclick="toggleCatalogCollapse()" id="catalogCollapseBtn"
+                        class="flex items-center gap-2 text-left group focus:outline-none"
+                        title="Roll up or expand the Catalog table">
+                        <span id="catalogCollapseChevron"
+                            class="w-6 h-6 rounded-lg bg-slate-800 group-hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-xs text-indigo-300 transition">▾</span>
+                        <h2 class="text-lg font-semibold text-indigo-300 group-hover:text-indigo-200 transition">Catalog Operations & Local Disk Assets</h2>
+                    </button>
                     <span class="text-xs text-slate-400 font-mono" id="catalogCount">0 items</span>
                 </div>
 
-                <div class="w-full sm:w-80 relative">
-                    <input type="text" id="catalogSearch" oninput="renderCatalog()"
-                        placeholder="Search Item or Design Source (min 3 chars)..."
-                        class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
-                    <span class="absolute right-3 top-2 text-xs text-slate-500">🔍</span>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <div class="flex-1 sm:w-72 relative">
+                        <input type="text" id="catalogSearch" oninput="if (isCatalogCollapsed && this.value.length > 0) toggleCatalogCollapse(false); renderCatalog();"
+                            placeholder="Search Item or Design Source (min 3 chars)..."
+                            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+                        <span class="absolute right-3 top-2 text-xs text-slate-500">🔍</span>
+                    </div>
+                    <button type="button" onclick="toggleCatalogCollapse()" id="catalogCollapseLabelBtn"
+                        class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl border border-slate-700 transition shrink-0">
+                        Roll Up
+                    </button>
                 </div>
             </div>
 
-            <div class="overflow-x-auto">
+            <div id="catalogTableWrapper" class="overflow-x-auto">
                 <table class="w-full text-left text-sm text-slate-300">
                     <thead class="bg-slate-950 text-xs uppercase text-slate-400 border-b border-slate-800">
                         <tr>
@@ -610,7 +632,8 @@
 
         <!-- Not Printed STL Backlog & Organizer -->
         <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+            <div
+                class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
                 <div class="flex items-center gap-3">
                     <h2 class="text-lg font-semibold text-amber-300 flex items-center gap-2">
                         <span>📐</span> Not Printed STL Library
@@ -639,7 +662,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-[11px] font-medium text-slate-400 mb-1">Model Folder Name <span class="text-slate-500">(optional — auto from zip/folder)</span></label>
+                        <label class="block text-[11px] font-medium text-slate-400 mb-1">Model Folder Name <span
+                                class="text-slate-500">(optional — auto from zip/folder)</span></label>
                         <input type="text" id="unprintedModelNameInput" placeholder="e.g. Gothic Dice Tower"
                             class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500">
                     </div>
@@ -652,13 +676,14 @@
                 <div id="unprintedDropzone"
                     ondragover="event.preventDefault(); this.classList.add('border-amber-400', 'bg-amber-950/20')"
                     ondragleave="this.classList.remove('border-amber-400', 'bg-amber-950/20')"
-                    ondrop="handleUnprintedDrop(event)"
-                    onclick="document.getElementById('unprintedFileInput').click()"
+                    ondrop="handleUnprintedDrop(event)" onclick="document.getElementById('unprintedFileInput').click()"
                     class="lg:col-span-8 border-2 border-dashed border-slate-700 hover:border-amber-500/70 bg-slate-950/50 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition space-y-2">
                     <div class="text-3xl">📦</div>
-                    <div class="text-sm font-semibold text-white">Drop .ZIP Archives, Folders, or .STL / .3MF Files Here</div>
+                    <div class="text-sm font-semibold text-white">Drop .ZIP Archives, Folders, or .STL / .3MF Files Here
+                    </div>
                     <p class="text-xs text-slate-400 max-w-lg">
-                        Files are <strong class="text-amber-300">copied</strong> into <code class="text-slate-300">unprinted_stls/&lt;Creator&gt;/&lt;Model&gt;/</code>.
+                        Files are <strong class="text-amber-300">copied</strong> into <code
+                            class="text-slate-300">unprinted_stls/&lt;Creator&gt;/&lt;Model&gt;/</code>.
                         ZIP files are automatically extracted and organized.
                     </p>
                     <span id="unprintedUploadStatus" class="text-xs text-amber-400 font-mono hidden"></span>
@@ -940,7 +965,7 @@
                 </div>
                 <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
                     <div class="text-xs text-slate-400">
-                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.5.0</strong>
+                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.5.1</strong>
                         <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
                     </div>
                     <button type="button" onclick="handleAppUpdateCheck(true)"
@@ -1093,12 +1118,13 @@
     </div>
 
     <script>
-        let appVersion = '2.5.0';
+        let appVersion = '2.5.1';
         let catalog = [];
         let printQueue = [];
         let unprintedStls = [];
         let activeUnprintedCreatorFilter = 'All';
         let pendingStlRowSlug = null;
+        let isCatalogCollapsed = localStorage.getItem('printops_catalog_collapsed') === 'true';
         let uploadedMonths = { "Jan": false, "Feb": false, "Mar": false, "Apr": false, "May": false, "Jun": false, "Jul": false, "Aug": false, "Sep": false, "Oct": false, "Nov": false, "Dec": false };
         let appSettings = {
             storage_root: "",
@@ -1499,11 +1525,34 @@
             syncSettingsToUI();
             calculateAll();
             renderCatalog();
+            applyCatalogCollapseState();
             renderPrintQueue();
             renderUnprintedStls();
             renderPatreonCards();
             renderPlatformTotalFees();
             renderMonthsGrid();
+        }
+
+        function applyCatalogCollapseState() {
+            const wrapper = document.getElementById('catalogTableWrapper');
+            const chevron = document.getElementById('catalogCollapseChevron');
+            const labelBtn = document.getElementById('catalogCollapseLabelBtn');
+            if (!wrapper) return;
+            if (isCatalogCollapsed) {
+                wrapper.classList.add('hidden');
+                if (chevron) chevron.innerText = '▸';
+                if (labelBtn) labelBtn.innerText = 'Expand';
+            } else {
+                wrapper.classList.remove('hidden');
+                if (chevron) chevron.innerText = '▾';
+                if (labelBtn) labelBtn.innerText = 'Roll Up';
+            }
+        }
+
+        function toggleCatalogCollapse(forceCollapsed = null) {
+            isCatalogCollapsed = forceCollapsed !== null ? !!forceCollapsed : !isCatalogCollapsed;
+            localStorage.setItem('printops_catalog_collapsed', isCatalogCollapsed ? 'true' : 'false');
+            applyCatalogCollapseState();
         }
 
         function syncSettingsToUI() {
