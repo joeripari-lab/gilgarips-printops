@@ -1,8 +1,10 @@
+import io
 import json
 import os
 import re
 import shutil
 import sys
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
@@ -207,6 +209,7 @@ class FileManager:
     def ensure_root_structure(self) -> None:
         self.storage_root.mkdir(parents=True, exist_ok=True)
         (self.storage_root / "products").mkdir(parents=True, exist_ok=True)
+        (self.storage_root / "unprinted_stls").mkdir(parents=True, exist_ok=True)
         STAGING_GCODE_DIR.mkdir(parents=True, exist_ok=True)
 
         if not self.settings_path.exists():
@@ -231,6 +234,10 @@ class FileManager:
     @property
     def products_dir(self) -> Path:
         return self.storage_root / "products"
+
+    @property
+    def unprinted_dir(self) -> Path:
+        return self.storage_root / "unprinted_stls"
 
     def get_default_settings(self) -> Dict[str, Any]:
         return {
@@ -413,10 +420,12 @@ class FileManager:
         prod_dir = self.products_dir / slug
         gcode_dir = prod_dir / "gcode"
         photos_dir = prod_dir / "photos"
+        stl_dir = prod_dir / "stl"
 
         prod_dir.mkdir(parents=True, exist_ok=True)
         gcode_dir.mkdir(parents=True, exist_ok=True)
         photos_dir.mkdir(parents=True, exist_ok=True)
+        stl_dir.mkdir(parents=True, exist_ok=True)
 
         # If there are staged gcode files from dropzone, move/copy them into gcode/
         staged_names = item.get("stagedGcodeFiles") or []
@@ -448,6 +457,7 @@ class FileManager:
         prod_dir = self.products_dir / slug
         photos_dir = prod_dir / "photos"
         gcode_dir = prod_dir / "gcode"
+        stl_dir = prod_dir / "stl"
 
         photos: List[str] = []
         if photos_dir.exists():
@@ -461,9 +471,16 @@ class FileManager:
                 if f.is_file() and f.suffix.lower() in {".gcode", ".3mf"}:
                     gcodes.append(f.name)
 
+        stls: List[str] = []
+        if stl_dir.exists():
+            for f in sorted(stl_dir.rglob("*")):
+                if f.is_file() and f.suffix.lower() in {".stl", ".3mf", ".obj"}:
+                    stls.append(str(f.relative_to(stl_dir)).replace("\\", "/"))
+
         item["photos"] = photos
         item["thumbnail"] = photos[0] if photos else None
         item["gcodeFiles"] = gcodes
+        item["stlFiles"] = stls
         item["productFolder"] = str(prod_dir)
 
     def save_slicer_file(
@@ -546,4 +563,287 @@ class FileManager:
             if f.is_file() and f.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp", ".gif"}
         ]
         return all_urls
+
+    # ==================== STL ORGANIZATION (PRINTED & NOT PRINTED) ====================
+
+    @staticmethod
+    def _sanitize_folder_label(name: str, fallback: str = "Unsorted") -> str:
+        cleaned = re.sub(r'[<>:"/\\|?*]+', "_", (name or "").strip()).strip(". ")
+        return cleaned[:100] if cleaned else fallback
+
+    @staticmethod
+    def _safe_extract_zip(
+        zip_bytes: bytes,
+        dest_dir: Path,
+        allowed_exts: Optional[set] = None,
+    ) -> int:
+        """
+        Safely extracts a .zip archive into dest_dir, preventing Zip Slip path traversal.
+        If all entries share a single top-level directory, unwraps that redundant wrapper.
+        Returns count of extracted files.
+        """
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        extracted_count = 0
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+            members = [
+                m for m in zf.infolist()
+                if not m.is_dir()
+                and not m.filename.startswith("__MACOSX")
+                and not Path(m.filename).name.startswith("._")
+            ]
+            if not members:
+                return 0
+
+            # Detect single top-level wrapper folder so we don't double-nest
+            top_parts = {
+                Path(m.filename).parts[0]
+                for m in members
+                if len(Path(m.filename).parts) > 1
+            }
+            all_have_sub = all(len(Path(m.filename).parts) > 1 for m in members)
+            strip_prefix = len(top_parts) == 1 and all_have_sub
+
+            for member in members:
+                rel_parts = Path(member.filename).parts
+                if strip_prefix:
+                    rel_parts = rel_parts[1:]
+                if not rel_parts:
+                    continue
+                if allowed_exts and Path(rel_parts[-1]).suffix.lower() not in allowed_exts:
+                    continue
+
+                # Prevent path traversal
+                safe_parts = [p for p in rel_parts if p not in ("", ".", "..")]
+                if not safe_parts:
+                    continue
+                target_path = (dest_dir / Path(*safe_parts)).resolve()
+                if not str(target_path).startswith(str(dest_dir.resolve())):
+                    continue
+
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(member) as src, open(target_path, "wb") as dst:
+                    shutil.copyfileobj(src, dst)
+                extracted_count += 1
+        return extracted_count
+
+    def ingest_product_stls(
+        self,
+        slug: str,
+        files_data: List[Tuple[str, bytes]],
+    ) -> List[str]:
+        """
+        Copies dropped .stl / .3mf / .obj files (or extracts .zip archives containing them)
+        into <root>/products/<slug>/stl/.
+        """
+        clean_slug = slugify_item_name(slug)
+        prod_dir = self.products_dir / clean_slug
+        stl_dir = prod_dir / "stl"
+        stl_dir.mkdir(parents=True, exist_ok=True)
+
+        model_exts = {".stl", ".3mf", ".obj"}
+        for orig_name, content_bytes in files_data:
+            p = Path(orig_name)
+            ext = p.suffix.lower()
+            if ext == ".zip":
+                self._safe_extract_zip(content_bytes, stl_dir, allowed_exts=model_exts)
+            elif ext in model_exts:
+                safe_name = re.sub(r"[^a-zA-Z0-9._-]", "_", p.name)
+                (stl_dir / safe_name).write_bytes(content_bytes)
+
+        # Refresh item in catalog_state.json
+        state = self.get_catalog_state()
+        for item in state["catalog"]:
+            if slugify_item_name(item.get("name", "")) == clean_slug or item.get("slug") == clean_slug:
+                self.scaffold_product_directory(item)
+        self.save_catalog_state(state)
+
+        return [
+            str(f.relative_to(stl_dir)).replace("\\", "/")
+            for f in sorted(stl_dir.rglob("*"))
+            if f.is_file() and f.suffix.lower() in model_exts
+        ]
+
+    def list_unprinted_stls(self) -> List[Dict[str, Any]]:
+        """
+        Scans <root>/unprinted_stls/<Creator>/<Model Name>/ and returns grouped model entries.
+        """
+        self.unprinted_dir.mkdir(parents=True, exist_ok=True)
+        model_exts = {".stl", ".3mf", ".obj"}
+        entries: List[Dict[str, Any]] = []
+
+        for creator_dir in sorted(self.unprinted_dir.iterdir()):
+            if not creator_dir.is_dir():
+                continue
+            creator_name = creator_dir.name
+            for model_dir in sorted(creator_dir.iterdir()):
+                if not model_dir.is_dir():
+                    continue
+                files: List[str] = []
+                total_size = 0
+                for f in sorted(model_dir.rglob("*")):
+                    if f.is_file() and f.suffix.lower() in model_exts:
+                        files.append(str(f.relative_to(model_dir)).replace("\\", "/"))
+                        total_size += f.stat().st_size
+
+                # Include folder even if it has non-STL files (e.g., images/docs), or show count
+                all_files_count = sum(1 for f in model_dir.rglob("*") if f.is_file())
+                if all_files_count == 0:
+                    continue
+
+                entries.append(
+                    {
+                        "creator": creator_name,
+                        "model_name": model_dir.name,
+                        "folder_path": str(model_dir),
+                        "stl_files": files,
+                        "stl_count": len(files),
+                        "total_files": all_files_count,
+                        "total_size_mb": round(total_size / (1024 * 1024), 2),
+                    }
+                )
+        return entries
+
+    def ingest_unprinted_upload(
+        self,
+        creator: str,
+        model_name: str,
+        files_data: List[Tuple[str, bytes, Optional[str]]],
+    ) -> Dict[str, Any]:
+        """
+        Organizes uploaded files, folders (via relative_path), or .zip archives into:
+        <root>/unprinted_stls/<Creator>/<Model Name>/
+        Always copies (never deletes user originals).
+        """
+        self.unprinted_dir.mkdir(parents=True, exist_ok=True)
+        safe_creator = self._sanitize_folder_label(creator, "Unsorted")
+        creator_dir = self.unprinted_dir / safe_creator
+        creator_dir.mkdir(parents=True, exist_ok=True)
+
+        explicit_model = (model_name or "").strip()
+        added_count = 0
+
+        for orig_name, content_bytes, rel_path in files_data:
+            p = Path(orig_name)
+            ext = p.suffix.lower()
+
+            if ext == ".zip":
+                target_model = self._sanitize_folder_label(explicit_model or p.stem, "Untitled_Model")
+                model_dir = creator_dir / target_model
+                added_count += self._safe_extract_zip(content_bytes, model_dir)
+                continue
+
+            # If dropped as a folder via webkitGetAsEntry, rel_path looks like "FolderName/sub/part.stl"
+            if rel_path and "/" in rel_path.replace("\\", "/"):
+                parts = [part for part in rel_path.replace("\\", "/").split("/") if part not in ("", ".", "..")]
+                if len(parts) >= 2:
+                    folder_root = self._sanitize_folder_label(explicit_model or parts[0], "Untitled_Model")
+                    sub_parts = parts[1:]
+                    target_path = creator_dir / folder_root / Path(*sub_parts)
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    target_path.write_bytes(content_bytes)
+                    added_count += 1
+                    continue
+
+            # Loose file(s)
+            target_model = self._sanitize_folder_label(explicit_model or p.stem, "Untitled_Model")
+            model_dir = creator_dir / target_model
+            model_dir.mkdir(parents=True, exist_ok=True)
+            safe_file = self._sanitize_folder_label(p.name, "model.stl")
+            (model_dir / safe_file).write_bytes(content_bytes)
+            added_count += 1
+
+        return {
+            "creator": safe_creator,
+            "added_count": added_count,
+            "unprinted": self.list_unprinted_stls(),
+        }
+
+    def ingest_unprinted_folder_from_disk(self, creator: str, source_folder: Path) -> Dict[str, Any]:
+        """
+        Copies an entire folder from disk into <root>/unprinted_stls/<Creator>/<FolderName>/
+        without streaming large files over HTTP.
+        """
+        self.unprinted_dir.mkdir(parents=True, exist_ok=True)
+        safe_creator = self._sanitize_folder_label(creator, "Unsorted")
+        safe_model = self._sanitize_folder_label(source_folder.name, "Untitled_Model")
+        dest_dir = self.unprinted_dir / safe_creator / safe_model
+
+        if dest_dir.exists():
+            # Merge/copy into existing folder without clobbering
+            for src_file in source_folder.rglob("*"):
+                if src_file.is_file():
+                    rel = src_file.relative_to(source_folder)
+                    dst_file = dest_dir / rel
+                    dst_file.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src_file, dst_file)
+        else:
+            shutil.copytree(source_folder, dest_dir)
+
+        return {
+            "creator": safe_creator,
+            "model_name": safe_model,
+            "unprinted": self.list_unprinted_stls(),
+        }
+
+    def promote_unprinted_to_printed(
+        self,
+        creator: str,
+        model_name: str,
+        target_slug: str,
+        remove_from_unprinted: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Copies STL/3MF/OBJ files from unprinted_stls/<creator>/<model_name>/
+        into products/<target_slug>/stl/, and optionally removes the unprinted folder.
+        """
+        safe_creator = self._sanitize_folder_label(creator, "Unsorted")
+        safe_model = self._sanitize_folder_label(model_name, "")
+        src_dir = self.unprinted_dir / safe_creator / safe_model
+        if not src_dir.exists():
+            raise FileNotFoundError(f"Unprinted folder not found: {src_dir}")
+
+        clean_slug = slugify_item_name(target_slug)
+        dest_stl_dir = self.products_dir / clean_slug / "stl"
+        dest_stl_dir.mkdir(parents=True, exist_ok=True)
+
+        model_exts = {".stl", ".3mf", ".obj"}
+        copied_files: List[str] = []
+        for f in src_dir.rglob("*"):
+            if f.is_file() and f.suffix.lower() in model_exts:
+                rel = f.relative_to(src_dir)
+                dst = dest_stl_dir / rel
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(f, dst)
+                copied_files.append(str(rel).replace("\\", "/"))
+
+        if remove_from_unprinted:
+            shutil.rmtree(src_dir, ignore_errors=True)
+            # Remove creator folder if empty
+            creator_dir = self.unprinted_dir / safe_creator
+            if creator_dir.exists() and not any(creator_dir.iterdir()):
+                creator_dir.rmdir()
+
+        # Refresh catalog state
+        state = self.get_catalog_state()
+        for item in state["catalog"]:
+            if slugify_item_name(item.get("name", "")) == clean_slug or item.get("slug") == clean_slug:
+                self.scaffold_product_directory(item)
+        self.save_catalog_state(state)
+
+        return {
+            "copied_files": copied_files,
+            "catalog": state["catalog"],
+            "unprinted": self.list_unprinted_stls(),
+        }
+
+    def delete_unprinted_model(self, creator: str, model_name: str) -> List[Dict[str, Any]]:
+        safe_creator = self._sanitize_folder_label(creator, "Unsorted")
+        safe_model = self._sanitize_folder_label(model_name, "")
+        target_dir = self.unprinted_dir / safe_creator / safe_model
+        if target_dir.exists() and target_dir.is_dir():
+            shutil.rmtree(target_dir, ignore_errors=True)
+        creator_dir = self.unprinted_dir / safe_creator
+        if creator_dir.exists() and not any(creator_dir.iterdir()):
+            creator_dir.rmdir()
+        return self.list_unprinted_stls()
 

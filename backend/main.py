@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from pathlib import Path
@@ -105,6 +106,18 @@ class OpenFolderRequest(BaseModel):
     slug: Optional[str] = None
 
 
+class UnprintedPromoteRequest(BaseModel):
+    creator: str
+    model_name: str
+    target_slug: str
+    remove_from_unprinted: bool = True
+
+
+class UnprintedActionRequest(BaseModel):
+    creator: str = ""
+    model_name: str = ""
+
+
 @app.get("/", response_class=HTMLResponse)
 async def serve_index():
     index_file = FRONTEND_DIR / "index.html"
@@ -146,6 +159,7 @@ async def get_full_state():
         "catalog": catalog_state["catalog"],
         "uploadedMonths": catalog_state["uploadedMonths"],
         "printQueue": catalog_state.get("printQueue", []),
+        "unprinted": file_manager.list_unprinted_stls(),
         "settings": settings,
     }
 
@@ -273,12 +287,9 @@ async def update_settings(settings_payload: Dict[str, Any]):
     }
 
 
-@app.post("/api/admin/pick-directory")
-async def pick_storage_directory():
+def _pick_native_folder(title: str = "Select Folder") -> Optional[str]:
     """Opens native OS folder picker dialog via pywebview or tkinter."""
     selected_dir = None
-
-    # 1. Try active pywebview window if running inside desktop shell
     try:
         import webview
 
@@ -290,7 +301,6 @@ async def pick_storage_directory():
     except Exception:
         pass
 
-    # 2. Fallback to tkinter directory dialog
     if not selected_dir:
         try:
             import tkinter as tk
@@ -301,13 +311,20 @@ async def pick_storage_directory():
             root.attributes("-topmost", True)
             chosen = filedialog.askdirectory(
                 initialdir=str(file_manager.storage_root),
-                title="Select Gilgarips Master Storage Directory",
+                title=title,
             )
             root.destroy()
             if chosen:
                 selected_dir = str(Path(chosen))
         except Exception:
             pass
+    return selected_dir
+
+
+@app.post("/api/admin/pick-directory")
+async def pick_storage_directory():
+    """Opens native OS folder picker dialog via pywebview or tkinter."""
+    selected_dir = _pick_native_folder("Select Gilgarips Master Storage Directory")
 
     if not selected_dir:
         return {"selected": False, "storage_root": str(file_manager.storage_root)}
@@ -524,6 +541,113 @@ async def upload_product_photos(
         "thumbnail": photo_urls[0] if photo_urls else None,
         "catalog": state["catalog"],
     }
+
+
+@app.post("/api/products/{slug}/stls")
+async def upload_product_stls(
+    slug: str,
+    files: List[UploadFile] = File(...),
+):
+    """
+    Copies dropped/uploaded .stl / .3mf / .obj files (or extracts .zip archives)
+    into <root>/products/<slug>/stl/ (Printed STL folder).
+    """
+    files_payload = []
+    for uf in files:
+        data = await uf.read()
+        if data:
+            files_payload.append((uf.filename or "model.stl", data))
+
+    if not files_payload:
+        raise HTTPException(status_code=400, detail="No valid STL/3MF/ZIP files uploaded")
+
+    stl_files = file_manager.ingest_product_stls(slug, files_payload)
+    state = file_manager.get_catalog_state()
+    return {
+        "slug": slugify_item_name(slug),
+        "stlFiles": stl_files,
+        "catalog": state["catalog"],
+    }
+
+
+@app.get("/api/unprinted")
+async def get_unprinted_stls():
+    return {"unprinted": file_manager.list_unprinted_stls()}
+
+
+@app.post("/api/unprinted/upload")
+async def upload_unprinted_stls(
+    creator: str = Form("Unsorted"),
+    model_name: str = Form(""),
+    relative_paths: str = Form("[]"),
+    files: List[UploadFile] = File(...),
+):
+    """
+    Copies dropped files, folders, or .zip archives into
+    <root>/unprinted_stls/<Creator>/<Model Name>/.
+    """
+    try:
+        rel_list = json.loads(relative_paths) if relative_paths else []
+    except Exception:
+        rel_list = []
+
+    files_payload = []
+    for idx, uf in enumerate(files):
+        data = await uf.read()
+        if data:
+            rel = rel_list[idx] if idx < len(rel_list) else None
+            files_payload.append((uf.filename or "model.stl", data, rel))
+
+    if not files_payload:
+        raise HTTPException(status_code=400, detail="No files uploaded")
+
+    return file_manager.ingest_unprinted_upload(creator, model_name, files_payload)
+
+
+@app.post("/api/unprinted/import-folder")
+async def import_unprinted_folder(creator: str = Form("Unsorted")):
+    """Opens native folder picker and copies the selected folder into unprinted_stls/<Creator>/."""
+    selected = _pick_native_folder("Select STL Model Folder to Copy into Not Printed Library")
+    if not selected:
+        return {"selected": False, "unprinted": file_manager.list_unprinted_stls()}
+    result = file_manager.ingest_unprinted_folder_from_disk(creator, Path(selected))
+    return {"selected": True, **result}
+
+
+@app.post("/api/unprinted/promote")
+async def promote_unprinted_stl(req: UnprintedPromoteRequest):
+    """Copies STL/3MF/OBJ files from Not Printed into a catalog product's stl/ folder."""
+    try:
+        return file_manager.promote_unprinted_to_printed(
+            creator=req.creator,
+            model_name=req.model_name,
+            target_slug=req.target_slug,
+            remove_from_unprinted=req.remove_from_unprinted,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.post("/api/unprinted/delete")
+async def delete_unprinted_stl(req: UnprintedActionRequest):
+    unprinted = file_manager.delete_unprinted_model(req.creator, req.model_name)
+    return {"unprinted": unprinted}
+
+
+@app.post("/api/unprinted/open")
+async def open_unprinted_folder(req: UnprintedActionRequest):
+    target = file_manager.unprinted_dir
+    if req.creator:
+        target = target / file_manager._sanitize_folder_label(req.creator, "Unsorted")
+    if req.model_name:
+        target = target / file_manager._sanitize_folder_label(req.model_name, "")
+    target.mkdir(parents=True, exist_ok=True)
+    try:
+        if hasattr(os, "startfile"):
+            os.startfile(str(target))
+        return {"opened": True, "path": str(target)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @app.post("/api/listings/generate")

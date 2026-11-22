@@ -23,7 +23,7 @@
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                             Gilgarips PrintOps <span id="headerVersionBadge"
-                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.4.1
+                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.5.0
                                 Desktop</span>
                         </h1>
                         <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver,
@@ -608,11 +608,79 @@
             </div>
         </div>
 
+        <!-- Not Printed STL Backlog & Organizer -->
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+                <div class="flex items-center gap-3">
+                    <h2 class="text-lg font-semibold text-amber-300 flex items-center gap-2">
+                        <span>📐</span> Not Printed STL Library
+                    </h2>
+                    <span class="text-xs text-slate-400 font-mono" id="unprintedCountBadge">0 models</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <input type="text" id="unprintedSearchInput" oninput="renderUnprintedStls()"
+                        placeholder="Filter by model or creator..."
+                        class="w-full sm:w-64 bg-slate-950 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500">
+                    <button onclick="openUnprintedFolder()"
+                        class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl border border-slate-700 transition">
+                        📁 Open Library Folder
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upload / Drag & Drop Controls -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+                <div class="lg:col-span-4 bg-slate-950/70 border border-slate-800/80 p-4 rounded-xl space-y-3">
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-400 mb-1">Creator / Design Source</label>
+                        <select id="unprintedCreatorSelect"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500">
+                            <option value="Unsorted">Unsorted</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-medium text-slate-400 mb-1">Model Folder Name <span class="text-slate-500">(optional — auto from zip/folder)</span></label>
+                        <input type="text" id="unprintedModelNameInput" placeholder="e.g. Gothic Dice Tower"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500">
+                    </div>
+                    <button onclick="importUnprintedFolderFromDisk()"
+                        class="w-full bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 rounded-lg py-2 px-3 text-xs font-semibold transition flex items-center justify-center gap-1.5">
+                        <span>📂</span> Pick Folder from PC (Copy)
+                    </button>
+                </div>
+
+                <div id="unprintedDropzone"
+                    ondragover="event.preventDefault(); this.classList.add('border-amber-400', 'bg-amber-950/20')"
+                    ondragleave="this.classList.remove('border-amber-400', 'bg-amber-950/20')"
+                    ondrop="handleUnprintedDrop(event)"
+                    onclick="document.getElementById('unprintedFileInput').click()"
+                    class="lg:col-span-8 border-2 border-dashed border-slate-700 hover:border-amber-500/70 bg-slate-950/50 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition space-y-2">
+                    <div class="text-3xl">📦</div>
+                    <div class="text-sm font-semibold text-white">Drop .ZIP Archives, Folders, or .STL / .3MF Files Here</div>
+                    <p class="text-xs text-slate-400 max-w-lg">
+                        Files are <strong class="text-amber-300">copied</strong> into <code class="text-slate-300">unprinted_stls/&lt;Creator&gt;/&lt;Model&gt;/</code>.
+                        ZIP files are automatically extracted and organized.
+                    </p>
+                    <span id="unprintedUploadStatus" class="text-xs text-amber-400 font-mono hidden"></span>
+                    <input type="file" id="unprintedFileInput" accept=".stl,.3mf,.obj,.zip" multiple class="hidden"
+                        onchange="handleUnprintedFileSelected(event)">
+                </div>
+            </div>
+
+            <!-- Creator Filter Pills -->
+            <div id="unprintedCreatorFilters" class="flex flex-wrap gap-1.5"></div>
+
+            <!-- Unprinted Models Grid -->
+            <div id="unprintedLibraryGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"></div>
+        </div>
+
     </div>
 
-    <!-- Hidden row photo uploader input -->
+    <!-- Hidden row photo & STL uploader inputs -->
     <input type="file" id="rowPhotoInput" accept="image/*" multiple class="hidden"
         onchange="handleRowPhotoSelected(event)">
+    <input type="file" id="rowStlInput" accept=".stl,.3mf,.obj,.zip" multiple class="hidden"
+        onchange="handleRowStlSelected(event)">
 
     <!-- MODAL 1: 1-Click Listing Pack Modal (Native Gemini AI + Instant Fallback) -->
     <div id="listingModal"
@@ -872,7 +940,7 @@
                 </div>
                 <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
                     <div class="text-xs text-slate-400">
-                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.4.1</strong>
+                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.5.0</strong>
                         <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
                     </div>
                     <button type="button" onclick="handleAppUpdateCheck(true)"
@@ -1025,9 +1093,12 @@
     </div>
 
     <script>
-        let appVersion = '2.4.1';
+        let appVersion = '2.5.0';
         let catalog = [];
         let printQueue = [];
+        let unprintedStls = [];
+        let activeUnprintedCreatorFilter = 'All';
+        let pendingStlRowSlug = null;
         let uploadedMonths = { "Jan": false, "Feb": false, "Mar": false, "Apr": false, "May": false, "Jun": false, "Jul": false, "Aug": false, "Sep": false, "Oct": false, "Nov": false, "Dec": false };
         let appSettings = {
             storage_root: "",
@@ -1416,6 +1487,7 @@
                     catalog = data.catalog || [];
                     uploadedMonths = data.uploadedMonths || uploadedMonths;
                     printQueue = data.printQueue || [];
+                    unprintedStls = data.unprinted || [];
                     if (data.settings) {
                         appSettings = data.settings;
                     }
@@ -1428,6 +1500,7 @@
             calculateAll();
             renderCatalog();
             renderPrintQueue();
+            renderUnprintedStls();
             renderPatreonCards();
             renderPlatformTotalFees();
             renderMonthsGrid();
@@ -1462,6 +1535,22 @@
                 }).join('');
                 if ([...patreonSelect.options].some(o => o.value === currentVal)) {
                     patreonSelect.value = currentVal;
+                }
+            }
+
+            // Populate Creator dropdown for Not Printed STL Organizer
+            const unprintedCreatorSelect = document.getElementById('unprintedCreatorSelect');
+            if (unprintedCreatorSelect) {
+                const prevCreator = unprintedCreatorSelect.value || 'Unsorted';
+                const creatorNames = getPatreonsList()
+                    .filter(p => p.active !== false && p.name !== 'None')
+                    .map(p => p.name);
+                if (!creatorNames.includes('Unsorted')) creatorNames.unshift('Unsorted');
+                unprintedCreatorSelect.innerHTML = creatorNames
+                    .map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+                    .join('');
+                if (creatorNames.includes(prevCreator)) {
+                    unprintedCreatorSelect.value = prevCreator;
                 }
             }
         }
@@ -2006,12 +2095,55 @@
             pendingPhotoRowSlug = null;
         }
 
-        async function handleRowPhotoDrop(event, slug) {
+        function triggerRowStlUpload(event, slug) {
+            event.stopPropagation();
+            pendingStlRowSlug = slug;
+            document.getElementById('rowStlInput').value = '';
+            document.getElementById('rowStlInput').click();
+        }
+
+        async function handleRowStlSelected(event) {
+            if (!pendingStlRowSlug || !event.target.files?.length) return;
+            await uploadStlsForSlug(pendingStlRowSlug, event.target.files);
+            pendingStlRowSlug = null;
+        }
+
+        async function handleRowAssetDrop(event, slug) {
             event.preventDefault();
             event.stopPropagation();
             event.currentTarget.classList.remove('ring-2', 'ring-emerald-500');
-            if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
-                await uploadPhotosForSlug(slug, event.dataTransfer.files);
+            const files = Array.from(event.dataTransfer.files || []);
+            if (!files.length) return;
+
+            const imageFiles = files.filter(f => /\.(jpe?g|png|webp|gif)$/i.test(f.name));
+            const stlFiles = files.filter(f => /\.(stl|3mf|obj|zip)$/i.test(f.name));
+
+            if (imageFiles.length > 0) {
+                await uploadPhotosForSlug(slug, imageFiles);
+            }
+            if (stlFiles.length > 0) {
+                await uploadStlsForSlug(slug, stlFiles);
+            }
+        }
+
+        async function uploadStlsForSlug(slug, fileList) {
+            const formData = new FormData();
+            Array.from(fileList).forEach(f => formData.append('files', f));
+            try {
+                const res = await fetch(`/api/products/${encodeURIComponent(slug)}/stls`, {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!res.ok) throw new Error('STL upload failed');
+                const data = await res.json();
+                if (data.catalog) {
+                    catalog = data.catalog;
+                    renderCatalog();
+                }
+                return data;
+            } catch (err) {
+                alert("Failed to upload STL/3MF files: " + err.message);
+                return null;
             }
         }
 
@@ -2401,6 +2533,336 @@
             }
         }
 
+        // ==================== NOT PRINTED STL LIBRARY ORGANIZER ====================
+        async function readAllDirectoryEntries(dirReader) {
+            const entries = [];
+            let batch = await new Promise((resolve, reject) => dirReader.readEntries(resolve, reject));
+            while (batch.length > 0) {
+                entries.push(...batch);
+                batch = await new Promise((resolve, reject) => dirReader.readEntries(resolve, reject));
+            }
+            return entries;
+        }
+
+        async function collectDroppedFilesWithPaths(entry, parentPath = '') {
+            if (!entry) return [];
+            if (entry.isFile) {
+                const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+                const relPath = parentPath ? `${parentPath}/${file.name}` : file.name;
+                return [{ file, relPath }];
+            }
+            if (entry.isDirectory) {
+                const dirReader = entry.createReader();
+                const childEntries = await readAllDirectoryEntries(dirReader);
+                const curPath = parentPath ? `${parentPath}/${entry.name}` : entry.name;
+                const results = [];
+                for (const child of childEntries) {
+                    const nested = await collectDroppedFilesWithPaths(child, curPath);
+                    results.push(...nested);
+                }
+                return results;
+            }
+            return [];
+        }
+
+        async function handleUnprintedDrop(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            const dz = document.getElementById('unprintedDropzone');
+            if (dz) dz.classList.remove('border-amber-400', 'bg-amber-950/20');
+
+            const items = Array.from(event.dataTransfer.items || []);
+            let collected = [];
+
+            if (items.length > 0 && typeof items[0].webkitGetAsEntry === 'function') {
+                for (const dtItem of items) {
+                    const entry = dtItem.webkitGetAsEntry();
+                    if (entry) {
+                        const res = await collectDroppedFilesWithPaths(entry, '');
+                        collected.push(...res);
+                    }
+                }
+            } else {
+                const files = Array.from(event.dataTransfer.files || []);
+                collected = files.map(file => ({ file, relPath: file.webkitRelativePath || file.name }));
+            }
+
+            if (collected.length > 0) {
+                await uploadUnprintedFiles(collected);
+            }
+        }
+
+        async function handleUnprintedFileSelected(event) {
+            const files = Array.from(event.target.files || []);
+            if (!files.length) return;
+            const collected = files.map(file => ({ file, relPath: file.webkitRelativePath || file.name }));
+            await uploadUnprintedFiles(collected);
+            event.target.value = '';
+        }
+
+        async function uploadUnprintedFiles(collectedItems) {
+            const statusEl = document.getElementById('unprintedUploadStatus');
+            const creator = document.getElementById('unprintedCreatorSelect')?.value || 'Unsorted';
+            const modelNameInput = document.getElementById('unprintedModelNameInput');
+            const modelName = (modelNameInput?.value || '').trim();
+
+            if (statusEl) {
+                statusEl.innerText = `Copying & organizing ${collectedItems.length} file(s)...`;
+                statusEl.classList.remove('hidden');
+            }
+
+            const formData = new FormData();
+            formData.append('creator', creator);
+            formData.append('model_name', modelName);
+            const relPaths = collectedItems.map(x => x.relPath);
+            formData.append('relative_paths', JSON.stringify(relPaths));
+            collectedItems.forEach(x => formData.append('files', x.file));
+
+            try {
+                const res = await fetch('/api/unprinted/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!res.ok) throw new Error('Failed to copy files into Not Printed library');
+                const data = await res.json();
+                unprintedStls = data.unprinted || [];
+                if (modelNameInput) modelNameInput.value = '';
+                renderUnprintedStls();
+                if (statusEl) {
+                    statusEl.innerText = `✅ Organized ${data.added_count || collectedItems.length} file(s) under ${data.creator}`;
+                    setTimeout(() => statusEl.classList.add('hidden'), 4000);
+                }
+            } catch (err) {
+                if (statusEl) statusEl.classList.add('hidden');
+                alert("Error organizing STL files: " + err.message);
+            }
+        }
+
+        async function importUnprintedFolderFromDisk() {
+            const creator = document.getElementById('unprintedCreatorSelect')?.value || 'Unsorted';
+            const statusEl = document.getElementById('unprintedUploadStatus');
+            if (statusEl) {
+                statusEl.innerText = 'Waiting for folder selection...';
+                statusEl.classList.remove('hidden');
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('creator', creator);
+                const res = await fetch('/api/unprinted/import-folder', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!res.ok) throw new Error('Folder import failed');
+                const data = await res.json();
+                if (data.selected) {
+                    unprintedStls = data.unprinted || [];
+                    renderUnprintedStls();
+                    if (statusEl) {
+                        statusEl.innerText = `✅ Copied "${data.model_name}" into ${data.creator}`;
+                        setTimeout(() => statusEl.classList.add('hidden'), 4000);
+                    }
+                } else if (statusEl) {
+                    statusEl.classList.add('hidden');
+                }
+            } catch (err) {
+                if (statusEl) statusEl.classList.add('hidden');
+                alert("Folder import failed: " + err.message);
+            }
+        }
+
+        function setUnprintedCreatorFilter(creator) {
+            activeUnprintedCreatorFilter = creator;
+            renderUnprintedStls();
+        }
+
+        function renderUnprintedStls() {
+            const grid = document.getElementById('unprintedLibraryGrid');
+            const badge = document.getElementById('unprintedCountBadge');
+            const filtersEl = document.getElementById('unprintedCreatorFilters');
+            if (!grid) return;
+
+            const search = (document.getElementById('unprintedSearchInput')?.value || '').trim().toLowerCase();
+            const list = unprintedStls || [];
+
+            // Build Creator Filter Pills
+            const creatorCounts = {};
+            list.forEach(m => {
+                creatorCounts[m.creator] = (creatorCounts[m.creator] || 0) + 1;
+            });
+            const creators = ['All', ...Object.keys(creatorCounts).sort()];
+            if (!creators.includes(activeUnprintedCreatorFilter)) {
+                activeUnprintedCreatorFilter = 'All';
+            }
+
+            if (filtersEl) {
+                filtersEl.innerHTML = creators.map(c => {
+                    const count = c === 'All' ? list.length : (creatorCounts[c] || 0);
+                    const isActive = c === activeUnprintedCreatorFilter;
+                    return `<button onclick="setUnprintedCreatorFilter('${escapeHtml(c)}')"
+                        class="px-2.5 py-1 rounded-full text-[11px] font-medium border transition ${isActive
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
+                            : 'bg-slate-950/70 text-slate-400 border-slate-800 hover:text-slate-200'}">
+                        ${escapeHtml(c)} <span class="font-mono opacity-75">(${count})</span>
+                    </button>`;
+                }).join('');
+            }
+
+            const filtered = list.filter(m => {
+                if (activeUnprintedCreatorFilter !== 'All' && m.creator !== activeUnprintedCreatorFilter) return false;
+                if (search) {
+                    return m.model_name.toLowerCase().includes(search) || m.creator.toLowerCase().includes(search);
+                }
+                return true;
+            });
+
+            if (badge) badge.innerText = `${filtered.length} of ${list.length} models`;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div class="col-span-full py-8 text-center text-xs text-slate-500 bg-slate-950/40 rounded-xl border border-slate-800/60">
+                    ${list.length === 0 ? 'No unprinted STL models organized yet. Drop a .zip, folder, or .stl files above!' : 'No models match the current filter.'}
+                </div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map((m) => {
+                const filePreview = (m.stl_files || []).slice(0, 3).map(f => escapeHtml(f)).join(', ')
+                    + ((m.stl_count || 0) > 3 ? ` +${m.stl_count - 3} more` : '');
+                return `
+                    <div class="bg-slate-950/80 border border-slate-800 hover:border-amber-500/40 rounded-xl p-4 flex flex-col justify-between gap-3 transition">
+                        <div class="space-y-1.5">
+                            <div class="flex items-start justify-between gap-2">
+                                <span class="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                                    ${escapeHtml(m.creator)}
+                                </span>
+                                <span class="text-[11px] font-mono text-slate-400">${m.stl_count} STL/3MF • ${m.total_size_mb} MB</span>
+                            </div>
+                            <h4 class="text-sm font-semibold text-white truncate" title="${escapeHtml(m.model_name)}">
+                                ${escapeHtml(m.model_name)}
+                            </h4>
+                            <p class="text-[11px] text-slate-500 font-mono truncate" title="${filePreview}">
+                                ${filePreview || `${m.total_files} file(s) in folder`}
+                            </p>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/70">
+                            <button onclick="openUnprintedFolder('${escapeHtml(m.creator)}', '${escapeHtml(m.model_name)}')"
+                                class="text-[11px] bg-slate-800 hover:bg-slate-700 text-slate-200 px-2.5 py-1 rounded-lg border border-slate-700 transition">
+                                📁 Open
+                            </button>
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="promoteUnprintedToCatalog('${escapeHtml(m.creator)}', '${escapeHtml(m.model_name)}')"
+                                    title="Mark as Printed & copy files into Catalog"
+                                    class="text-[11px] bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/40 font-semibold transition">
+                                    🚀 Move to Printed
+                                </button>
+                                <button onclick="deleteUnprintedModel('${escapeHtml(m.creator)}', '${escapeHtml(m.model_name)}')"
+                                    title="Delete from Not Printed Library"
+                                    class="text-[11px] text-rose-400 hover:text-rose-300 bg-rose-950/40 px-2 py-1 rounded-lg border border-rose-900/50 transition">
+                                    ✕
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function promoteUnprintedToCatalog(creator, modelName) {
+            // Check if a matching catalog item already exists
+            const cleanName = modelName.replace(/[_-]+/g, ' ').trim();
+            const existingIdx = (catalog || []).findIndex(c => (c.name || '').toLowerCase() === cleanName.toLowerCase());
+
+            if (existingIdx >= 0) {
+                if (!confirm(`Found existing catalog item "${catalog[existingIdx].name}". Move STL files into its Printed folder?`)) return;
+                const targetSlug = catalog[existingIdx].slug || slugify(catalog[existingIdx].name);
+                await _executePromoteUnprinted(creator, modelName, targetSlug);
+            } else {
+                // Create a new catalog entry or attach to form
+                if (!confirm(`Create a new Printed Catalog entry for "${cleanName}" (${creator}) and move its STL files into products/?`)) return;
+                const newItem = {
+                    name: cleanName,
+                    salePrice: 25,
+                    itemCost: 0,
+                    shippingCharged: 5.5,
+                    packageWeight: 12,
+                    freeShipping: false,
+                    filamentGrams: 150,
+                    filamentCostPerKg: 20,
+                    printHours: 4,
+                    powerRate: 0.21,
+                    patreonSource: creator === 'Unsorted' ? 'Gilgarips 3D' : creator,
+                    suppliesCost: 1,
+                    stockOnHand: 0,
+                    materialType: 'PLA Pro / Tough PLA'
+                };
+                try {
+                    const saveRes = await fetch('/api/items', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ item: newItem, index: -1 })
+                    });
+                    if (!saveRes.ok) throw new Error('Failed to create catalog entry');
+                    const saveData = await saveRes.json();
+                    catalog = saveData.catalog || catalog;
+                    const createdSlug = saveData.item?.slug || slugify(cleanName);
+                    await _executePromoteUnprinted(creator, modelName, createdSlug);
+                } catch (err) {
+                    alert("Failed to create catalog item: " + err.message);
+                }
+            }
+        }
+
+        async function _executePromoteUnprinted(creator, modelName, targetSlug) {
+            try {
+                const res = await fetch('/api/unprinted/promote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        creator,
+                        model_name: modelName,
+                        target_slug: targetSlug,
+                        remove_from_unprinted: true
+                    })
+                });
+                if (!res.ok) throw new Error('Promote failed');
+                const data = await res.json();
+                if (data.catalog) catalog = data.catalog;
+                unprintedStls = data.unprinted || [];
+                renderCatalog();
+                renderUnprintedStls();
+                renderPatreonCards();
+            } catch (err) {
+                alert("Failed to move STL files to Printed catalog: " + err.message);
+            }
+        }
+
+        async function deleteUnprintedModel(creator, modelName) {
+            if (!confirm(`Delete "${modelName}" from the Not Printed library (${creator})?`)) return;
+            try {
+                const res = await fetch('/api/unprinted/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ creator, model_name: modelName })
+                });
+                if (!res.ok) throw new Error('Delete failed');
+                const data = await res.json();
+                unprintedStls = data.unprinted || [];
+                renderUnprintedStls();
+            } catch (err) {
+                alert("Failed to delete unprinted model: " + err.message);
+            }
+        }
+
+        async function openUnprintedFolder(creator = '', modelName = '') {
+            try {
+                await fetch('/api/unprinted/open', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ creator, model_name: modelName })
+                });
+            } catch (e) { }
+        }
+
         async function openStorageFolder(slug = null, event = null) {
             if (event) event.stopPropagation();
             try {
@@ -2467,6 +2929,7 @@
                 const thumbUrl = item.thumbnail ? `${item.thumbnail}?t=${Date.now()}` : null;
                 const gcodeCount = (item.gcodeFiles || []).length;
                 const photoCount = (item.photos || []).length;
+                const stlCount = (item.stlFiles || []).length;
 
                 const salesInputsHtml = activeChannels.map(ch => {
                     const val = item.ytdSales[ch.key] || 0;
@@ -2478,8 +2941,8 @@
                     <tr onclick="loadItemIntoForm(${index})"
                         ondragover="event.preventDefault(); this.classList.add('ring-2', 'ring-emerald-500')"
                         ondragleave="this.classList.remove('ring-2', 'ring-emerald-500')"
-                        ondrop="handleRowPhotoDrop(event, '${slug}')"
-                        title="Click to edit • Drag & drop photos onto row to auto-save as 01_hero.jpg, 02_detail.jpg"
+                        ondrop="handleRowAssetDrop(event, '${slug}')"
+                        title="Click to edit • Drag & drop photos OR .stl/.3mf/.zip onto row to save to this item's folder"
                         class="cursor-pointer transition ${isSelected ? 'bg-indigo-950/40 border-l-2 border-indigo-500' : 'hover:bg-slate-900/60'}">
                         <td class="p-3">
                             <div class="flex items-center gap-2.5">
@@ -2495,6 +2958,7 @@
                                     <div class="text-[10px] text-slate-500 font-mono mt-0.5 flex items-center gap-2">
                                         <span>${item.filamentGrams}g • ${item.printHours}h • ${item.patreonSource}</span>
                                         ${gcodeCount > 0 ? `<span class="text-indigo-400">🖨️ ${gcodeCount} gcode</span>` : ''}
+                                        ${stlCount > 0 ? `<span class="text-amber-400">📐 ${stlCount} stl</span>` : ''}
                                         ${photoCount > 0 ? `<span class="text-emerald-400">🖼️ ${photoCount} img</span>` : ''}
                                     </div>
                                 </div>
@@ -2517,6 +2981,7 @@
                         <td class="p-3 text-right space-x-1 whitespace-nowrap" onclick="event.stopPropagation()">
                             <button onclick="openEtsyPhotoModal('${slug}', event)" title="Pull Photos from Etsy Listing URL" class="text-amber-300 hover:text-white text-[11px] bg-amber-950/70 px-2 py-1 rounded border border-amber-800">🌐 Etsy</button>
                             <button onclick="triggerRowPhotoUpload(event, '${slug}')" title="Upload Product Photos" class="text-slate-300 hover:text-white text-[11px] bg-slate-800 px-2 py-1 rounded border border-slate-700">📷</button>
+                            <button onclick="triggerRowStlUpload(event, '${slug}')" title="Add Printed STL / 3MF / ZIP Files" class="text-amber-300 hover:text-white text-[11px] bg-slate-800 px-2 py-1 rounded border border-slate-700">📐</button>
                             <button onclick="openStorageFolder('${slug}', event)" title="Open Product Folder on Disk" class="text-slate-300 hover:text-white text-[11px] bg-slate-800 px-2 py-1 rounded border border-slate-700">📁</button>
                             <button onclick="openListingModal(${index})" title="Generate AI / Template Copy Pack" class="text-indigo-300 hover:text-white text-[11px] bg-indigo-950/70 px-2 py-1 rounded border border-indigo-800">📋 Pack</button>
                             <button onclick="openSlipModal(${index})" title="Print Mayhem Insert Slip" class="text-emerald-300 hover:text-white text-[11px] bg-emerald-950/70 px-2 py-1 rounded border border-emerald-800">🖨️ Slip</button>

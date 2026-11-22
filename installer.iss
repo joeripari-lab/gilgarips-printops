@@ -7,7 +7,7 @@
 #define MyAppExeName "GilgaripsPrintOps.exe"
 
 #ifndef MyAppVersion
-#define MyAppVersion "2.4.1"
+#define MyAppVersion "2.5.0"
 #endif
 
 [Setup]
