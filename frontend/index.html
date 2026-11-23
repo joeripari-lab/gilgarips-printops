@@ -23,7 +23,7 @@
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                             Gilgarips PrintOps <span id="headerVersionBadge"
-                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.6.1
+                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.6.2
                                 Desktop</span>
                         </h1>
                         <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver,
@@ -999,7 +999,7 @@
                 </div>
                 <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
                     <div class="text-xs text-slate-400">
-                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.6.1</strong>
+                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.6.2</strong>
                         <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
                     </div>
                     <button type="button" onclick="handleAppUpdateCheck(true)"
@@ -1152,7 +1152,7 @@
     </div>
 
     <script>
-        let appVersion = '2.6.1';
+        let appVersion = '2.6.2';
         let catalog = [];
         let printQueue = [];
         let unprintedStls = [];
@@ -1801,23 +1801,18 @@
             const ship = computeShippingDetails(item.packageWeight, item.boxLength, item.boxWidth, item.boxHeight);
             const freeShippingActive = item.freeShipping !== undefined ? !!item.freeShipping : (item.freeShippingOver35 !== undefined ? !!item.freeShippingOver35 : false);
 
-            // When customer pays for shipping (Free Shipping = No), shipping is customer-paid ($0 net shipping outflow to seller).
-            // When Free Shipping = Yes, seller absorbs the actual postage cost.
-            const shippingOutflow = freeShippingActive ? ship.shippingCost : 0;
+            // Seller always pays the carrier for the shipping label.
+            // When Free Shipping = No, the customer's shippingCharged is added to totalRevenue to offset the label cost.
+            // When Free Shipping = Yes, totalRevenue is just salePrice so seller absorbs the label cost.
+            const shippingOutflow = ship.shippingCost;
             const totalDirectCost = directItemCost + shippingOutflow;
 
-            // When customer pays shipping, platforms charge fees on total order (item + shipping), but shipping revenue covers label cost.
             const totalRevenue = item.salePrice + (freeShippingActive ? 0 : item.shippingCharged);
             const marginBase = item.salePrice > 0 ? item.salePrice : totalRevenue;
 
             const byChannel = {};
             (appSettings.channels || []).forEach(ch => {
-                let channelTotalCost = totalDirectCost;
-                if (!freeShippingActive && (ch.key === 'Mayhem' || ch.fee_model === 'subscription')) {
-                    // For Mayhem / direct subscription storefront, customer pays direct postage, no fee drag
-                    channelTotalCost = directItemCost;
-                }
-                byChannel[ch.key] = computeChannelFinancials(ch, item, totalRevenue, marginBase, directItemCost, channelTotalCost);
+                byChannel[ch.key] = computeChannelFinancials(ch, item, totalRevenue, marginBase, directItemCost, totalDirectCost);
             });
 
             // Guarantee keys for legacy accessors
