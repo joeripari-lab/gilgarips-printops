@@ -571,59 +571,93 @@ class FileManager:
         cleaned = re.sub(r'[<>:"/\\|?*]+', "_", (name or "").strip()).strip(". ")
         return cleaned[:100] if cleaned else fallback
 
-    @staticmethod
+    @classmethod
     def _safe_extract_zip(
+        cls,
         zip_bytes: bytes,
         dest_dir: Path,
         allowed_exts: Optional[set] = None,
+        _depth: int = 0,
     ) -> int:
         """
-        Safely extracts a .zip archive into dest_dir, preventing Zip Slip path traversal.
-        If all entries share a single top-level directory, unwraps that redundant wrapper.
+        Safely extracts a .zip archive into dest_dir across unlimited subfolder depths,
+        preventing Zip Slip path traversal, normalizing Windows/POSIX separators,
+        stripping redundant single-folder wrappers, and recursively unpacking nested .zip files.
         Returns count of extracted files.
         """
+        if _depth > 4:
+            return 0
+
         dest_dir.mkdir(parents=True, exist_ok=True)
         extracted_count = 0
+
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
-            members = [
-                m for m in zf.infolist()
-                if not m.is_dir()
-                and not m.filename.startswith("__MACOSX")
-                and not Path(m.filename).name.startswith("._")
-            ]
-            if not members:
+            raw_members = []
+            for m in zf.infolist():
+                if m.is_dir():
+                    continue
+                parts = [p for p in re.split(r"[\\/]+", m.filename) if p not in ("", ".", "..")]
+                if not parts:
+                    continue
+                if parts[0] == "__MACOSX" or parts[-1].startswith("._") or parts[-1] in {".DS_Store", "Thumbs.db"}:
+                    continue
+                raw_members.append((m, parts))
+
+            if not raw_members:
                 return 0
 
-            # Detect single top-level wrapper folder so we don't double-nest
-            top_parts = {
-                Path(m.filename).parts[0]
-                for m in members
-                if len(Path(m.filename).parts) > 1
-            }
-            all_have_sub = all(len(Path(m.filename).parts) > 1 for m in members)
-            strip_prefix = len(top_parts) == 1 and all_have_sub
+            # Iteratively strip redundant single top-level wrapper directories
+            while len(raw_members) > 0:
+                first_parts = {parts[0] for _, parts in raw_members if len(parts) > 1}
+                all_nested = all(len(parts) > 1 for _, parts in raw_members)
+                if all_nested and len(first_parts) == 1:
+                    raw_members = [(m, parts[1:]) for m, parts in raw_members]
+                else:
+                    break
 
-            for member in members:
-                rel_parts = Path(member.filename).parts
-                if strip_prefix:
-                    rel_parts = rel_parts[1:]
+            resolved_dest = dest_dir.resolve()
+            for member, rel_parts in raw_members:
                 if not rel_parts:
                     continue
-                if allowed_exts and Path(rel_parts[-1]).suffix.lower() not in allowed_exts:
+
+                filename = rel_parts[-1]
+                ext = Path(filename).suffix.lower()
+
+                # Recursively unpack nested .zip archives inside the zip
+                if ext == ".zip":
+                    try:
+                        inner_bytes = zf.read(member)
+                        inner_target = dest_dir / cls._sanitize_folder_label(Path(filename).stem, "nested_pack")
+                        extracted_count += cls._safe_extract_zip(
+                            inner_bytes,
+                            inner_target,
+                            allowed_exts=allowed_exts,
+                            _depth=_depth + 1,
+                        )
+                    except Exception:
+                        pass
                     continue
 
-                # Prevent path traversal
-                safe_parts = [p for p in rel_parts if p not in ("", ".", "..")]
-                if not safe_parts:
+                if allowed_exts and ext not in allowed_exts:
                     continue
+
+                safe_parts = [cls._sanitize_folder_label(p, "item") for p in rel_parts]
                 target_path = (dest_dir / Path(*safe_parts)).resolve()
-                if not str(target_path).startswith(str(dest_dir.resolve())):
+                if not str(target_path).startswith(str(resolved_dest)):
                     continue
+
+                # Guard against Windows 260-char MAX_PATH on deeply nested folders
+                if len(str(target_path)) > 235:
+                    target_path = (dest_dir / safe_parts[-1]).resolve()
+                    if target_path.exists():
+                        stem = Path(safe_parts[-1]).stem
+                        target_path = (dest_dir / f"{stem}_{extracted_count + 1}{ext}").resolve()
 
                 target_path.parent.mkdir(parents=True, exist_ok=True)
                 with zf.open(member) as src, open(target_path, "wb") as dst:
                     shutil.copyfileobj(src, dst)
                 extracted_count += 1
+
         return extracted_count
 
     def ingest_product_stls(
@@ -793,8 +827,12 @@ class FileManager:
         remove_from_unprinted: bool = True,
     ) -> Dict[str, Any]:
         """
-        Copies STL/3MF/OBJ files from unprinted_stls/<creator>/<model_name>/
-        into products/<target_slug>/stl/, and optionally removes the unprinted folder.
+        Moves/copies ALL associated files from unprinted_stls/<creator>/<model_name>/
+        into products/<target_slug>/ routed cleanly by file type:
+        - .gcode / .gcode.3mf -> gcode/
+        - .jpg/.jpeg/.png/.webp/.gif -> photos/
+        - .stl / .3mf / .obj and any supporting files -> stl/ (preserving relative paths)
+        Optionally removes the unprinted folder once merged.
         """
         safe_creator = self._sanitize_folder_label(creator, "Unsorted")
         safe_model = self._sanitize_folder_label(model_name, "")
@@ -803,22 +841,54 @@ class FileManager:
             raise FileNotFoundError(f"Unprinted folder not found: {src_dir}")
 
         clean_slug = slugify_item_name(target_slug)
-        dest_stl_dir = self.products_dir / clean_slug / "stl"
+        prod_dir = self.products_dir / clean_slug
+        dest_stl_dir = prod_dir / "stl"
+        dest_gcode_dir = prod_dir / "gcode"
+        dest_photos_dir = prod_dir / "photos"
         dest_stl_dir.mkdir(parents=True, exist_ok=True)
+        dest_gcode_dir.mkdir(parents=True, exist_ok=True)
+        dest_photos_dir.mkdir(parents=True, exist_ok=True)
 
-        model_exts = {".stl", ".3mf", ".obj"}
+        image_exts = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+        existing_photos = sorted(
+            [f for f in dest_photos_dir.iterdir() if f.is_file() and f.suffix.lower() in image_exts]
+        )
+        next_photo_idx = len(existing_photos) + 1
+
         copied_files: List[str] = []
-        for f in src_dir.rglob("*"):
-            if f.is_file() and f.suffix.lower() in model_exts:
-                rel = f.relative_to(src_dir)
+        for f in sorted(src_dir.rglob("*")):
+            if not f.is_file():
+                continue
+            name_lower = f.name.lower()
+            ext = f.suffix.lower()
+            rel = f.relative_to(src_dir)
+
+            if name_lower.endswith(".gcode") or name_lower.endswith(".gcode.3mf"):
+                dst = dest_gcode_dir / f.name
+                if dst.exists():
+                    dst = dest_gcode_dir / f"{f.stem}_{len(copied_files) + 1}{ext}"
+                shutil.copy2(f, dst)
+                copied_files.append(f"gcode/{dst.name}")
+            elif ext in image_exts:
+                role_idx = next_photo_idx - 1
+                role_name = (
+                    PHOTO_ROLE_SUFFIXES[role_idx]
+                    if role_idx < len(PHOTO_ROLE_SUFFIXES)
+                    else "detail"
+                )
+                clean_photo_name = f"{next_photo_idx:02d}_{role_name}{ext if ext != '.jpeg' else '.jpg'}"
+                dst = dest_photos_dir / clean_photo_name
+                shutil.copy2(f, dst)
+                next_photo_idx += 1
+                copied_files.append(f"photos/{dst.name}")
+            else:
                 dst = dest_stl_dir / rel
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(f, dst)
-                copied_files.append(str(rel).replace("\\", "/"))
+                copied_files.append(f"stl/{str(rel).replace(chr(92), '/')}")
 
         if remove_from_unprinted:
             shutil.rmtree(src_dir, ignore_errors=True)
-            # Remove creator folder if empty
             creator_dir = self.unprinted_dir / safe_creator
             if creator_dir.exists() and not any(creator_dir.iterdir()):
                 creator_dir.rmdir()

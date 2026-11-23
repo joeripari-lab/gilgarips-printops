@@ -23,7 +23,7 @@
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                             Gilgarips PrintOps <span id="headerVersionBadge"
-                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.5.1
+                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.6.0
                                 Desktop</span>
                         </h1>
                         <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver,
@@ -707,6 +707,40 @@
     <input type="file" id="rowStlInput" accept=".stl,.3mf,.obj,.zip" multiple class="hidden"
         onchange="handleRowStlSelected(event)">
 
+    <!-- MODAL: Merge Unprinted Folder into Existing Catalog Listing -->
+    <div id="mergeUnprintedModal"
+        class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-start border-b border-slate-800 pb-3">
+                <div>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span>🔗</span> Merge Files into Catalog Listing
+                    </h3>
+                    <p class="text-xs text-slate-400 mt-0.5">
+                        Moving all files from <strong id="mergeSourceLabel" class="text-amber-300"></strong> into the selected listing's folder.
+                    </p>
+                </div>
+                <button onclick="closeMergeUnprintedModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+            </div>
+
+            <div>
+                <input type="text" id="mergeCatalogSearch" oninput="renderMergeCatalogOptions()"
+                    placeholder="Search existing catalog listings..."
+                    class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500">
+            </div>
+
+            <div id="mergeCatalogList" class="max-h-72 overflow-y-auto divide-y divide-slate-800/60 border border-slate-800 rounded-xl bg-slate-950/50">
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+                <button onclick="closeMergeUnprintedModal()"
+                    class="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL 1: 1-Click Listing Pack Modal (Native Gemini AI + Instant Fallback) -->
     <div id="listingModal"
         class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -965,7 +999,7 @@
                 </div>
                 <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
                     <div class="text-xs text-slate-400">
-                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.5.1</strong>
+                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.6.0</strong>
                         <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
                     </div>
                     <button type="button" onclick="handleAppUpdateCheck(true)"
@@ -1118,7 +1152,7 @@
     </div>
 
     <script>
-        let appVersion = '2.5.1';
+        let appVersion = '2.6.0';
         let catalog = [];
         let printQueue = [];
         let unprintedStls = [];
@@ -2655,31 +2689,67 @@
             const modelNameInput = document.getElementById('unprintedModelNameInput');
             const modelName = (modelNameInput?.value || '').trim();
 
-            if (statusEl) {
-                statusEl.innerText = `Copying & organizing ${collectedItems.length} file(s)...`;
-                statusEl.classList.remove('hidden');
-            }
+            const zipItems = collectedItems.filter(x => /\.zip$/i.test(x.file.name));
+            const otherItems = collectedItems.filter(x => !/\.zip$/i.test(x.file.name));
 
-            const formData = new FormData();
-            formData.append('creator', creator);
-            formData.append('model_name', modelName);
-            const relPaths = collectedItems.map(x => x.relPath);
-            formData.append('relative_paths', JSON.stringify(relPaths));
-            collectedItems.forEach(x => formData.append('files', x.file));
+            let totalAdded = 0;
+            let lastCreator = creator;
 
             try {
-                const res = await fetch('/api/unprinted/upload', {
-                    method: 'POST',
-                    body: formData
-                });
-                if (!res.ok) throw new Error('Failed to copy files into Not Printed library');
-                const data = await res.json();
-                unprintedStls = data.unprinted || [];
+                // Process each .zip sequentially so multi-ZIP drops show live progress & never stall
+                for (let i = 0; i < zipItems.length; i++) {
+                    const zipEntry = zipItems[i];
+                    if (statusEl) {
+                        statusEl.innerText = `⏳ Extracting ZIP ${i + 1} of ${zipItems.length}: ${zipEntry.file.name}...`;
+                        statusEl.classList.remove('hidden');
+                    }
+
+                    const formData = new FormData();
+                    formData.append('creator', creator);
+                    formData.append('model_name', modelName);
+                    formData.append('relative_paths', JSON.stringify([zipEntry.relPath]));
+                    formData.append('files', zipEntry.file);
+
+                    const res = await fetch('/api/unprinted/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (!res.ok) throw new Error(`Failed to extract ${zipEntry.file.name}`);
+                    const data = await res.json();
+                    unprintedStls = data.unprinted || [];
+                    totalAdded += (data.added_count || 0);
+                    lastCreator = data.creator || creator;
+                    renderUnprintedStls();
+                }
+
+                // Upload any non-zip files/folders in one batch
+                if (otherItems.length > 0) {
+                    if (statusEl) {
+                        statusEl.innerText = `⏳ Copying ${otherItems.length} file(s)...`;
+                        statusEl.classList.remove('hidden');
+                    }
+                    const formData = new FormData();
+                    formData.append('creator', creator);
+                    formData.append('model_name', modelName);
+                    formData.append('relative_paths', JSON.stringify(otherItems.map(x => x.relPath)));
+                    otherItems.forEach(x => formData.append('files', x.file));
+
+                    const res = await fetch('/api/unprinted/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    if (!res.ok) throw new Error('Failed to copy files into Not Printed library');
+                    const data = await res.json();
+                    unprintedStls = data.unprinted || [];
+                    totalAdded += (data.added_count || otherItems.length);
+                    lastCreator = data.creator || creator;
+                    renderUnprintedStls();
+                }
+
                 if (modelNameInput) modelNameInput.value = '';
-                renderUnprintedStls();
                 if (statusEl) {
-                    statusEl.innerText = `✅ Organized ${data.added_count || collectedItems.length} file(s) under ${data.creator}`;
-                    setTimeout(() => statusEl.classList.add('hidden'), 4000);
+                    statusEl.innerText = `✅ Organized ${totalAdded} file(s) under ${lastCreator}`;
+                    setTimeout(() => statusEl.classList.add('hidden'), 5000);
                 }
             } catch (err) {
                 if (statusEl) statusEl.classList.add('hidden');
@@ -2799,10 +2869,15 @@
                                 📁 Open
                             </button>
                             <div class="flex items-center gap-1.5">
+                                <button onclick="openMergeUnprintedModal('${escapeHtml(m.creator)}', '${escapeHtml(m.model_name)}')"
+                                    title="Merge all files into an existing Catalog listing"
+                                    class="text-[11px] bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 px-2.5 py-1 rounded-lg border border-indigo-500/40 font-semibold transition">
+                                    🔗 Merge
+                                </button>
                                 <button onclick="promoteUnprintedToCatalog('${escapeHtml(m.creator)}', '${escapeHtml(m.model_name)}')"
-                                    title="Mark as Printed & copy files into Catalog"
+                                    title="Create new Catalog entry & move files"
                                     class="text-[11px] bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 px-2.5 py-1 rounded-lg border border-emerald-500/40 font-semibold transition">
-                                    🚀 Move to Printed
+                                    🚀 New Listing
                                 </button>
                                 <button onclick="deleteUnprintedModel('${escapeHtml(m.creator)}', '${escapeHtml(m.model_name)}')"
                                     title="Delete from Not Printed Library"
@@ -2814,6 +2889,74 @@
                     </div>
                 `;
             }).join('');
+        }
+
+        let pendingMergeSource = null;
+
+        function openMergeUnprintedModal(creator, modelName) {
+            pendingMergeSource = { creator, modelName };
+            document.getElementById('mergeSourceLabel').innerText = `${creator} / ${modelName}`;
+            document.getElementById('mergeCatalogSearch').value = '';
+            renderMergeCatalogOptions();
+            document.getElementById('mergeUnprintedModal').classList.remove('hidden');
+            setTimeout(() => document.getElementById('mergeCatalogSearch').focus(), 50);
+        }
+
+        function closeMergeUnprintedModal() {
+            pendingMergeSource = null;
+            document.getElementById('mergeUnprintedModal').classList.add('hidden');
+        }
+
+        function renderMergeCatalogOptions() {
+            const listEl = document.getElementById('mergeCatalogList');
+            if (!listEl) return;
+            const query = (document.getElementById('mergeCatalogSearch')?.value || '').trim().toLowerCase();
+
+            const matches = (catalog || []).filter(item => {
+                if (!query) return true;
+                return (item.name || '').toLowerCase().includes(query)
+                    || (item.patreonSource || '').toLowerCase().includes(query);
+            });
+
+            if (matches.length === 0) {
+                listEl.innerHTML = `<div class="p-6 text-center text-xs text-slate-500">No matching catalog listings found.</div>`;
+                return;
+            }
+
+            listEl.innerHTML = matches.map(item => {
+                const slug = item.slug || slugify(item.name);
+                const stlCount = (item.stlFiles || []).length;
+                const gcodeCount = (item.gcodeFiles || []).length;
+                const photoCount = (item.photos || []).length;
+                const thumbUrl = item.thumbnail ? `${item.thumbnail}?t=${Date.now()}` : null;
+                return `
+                    <button type="button" onclick="confirmMergeToListing('${escapeHtml(slug)}', '${escapeHtml(item.name)}')"
+                        class="w-full p-3 flex items-center justify-between gap-3 text-left hover:bg-indigo-950/40 transition">
+                        <div class="flex items-center gap-3 min-w-0">
+                            ${thumbUrl
+                                ? `<img src="${thumbUrl}" class="w-9 h-9 rounded-lg object-cover border border-slate-700 shrink-0">`
+                                : `<div class="w-9 h-9 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 text-xs shrink-0">📦</div>`
+                            }
+                            <div class="min-w-0">
+                                <div class="text-xs font-semibold text-white truncate">${escapeHtml(item.name)}</div>
+                                <div class="text-[10px] text-slate-400 font-mono truncate">
+                                    ${escapeHtml(item.patreonSource || 'Unknown')} • 📐 ${stlCount} stl • 🖨️ ${gcodeCount} gcode • 🖼️ ${photoCount} img
+                                </div>
+                            </div>
+                        </div>
+                        <span class="text-[11px] font-semibold text-indigo-300 bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-1 rounded-lg shrink-0">
+                            Merge Here →
+                        </span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        async function confirmMergeToListing(targetSlug, targetName) {
+            if (!pendingMergeSource) return;
+            const { creator, modelName } = pendingMergeSource;
+            closeMergeUnprintedModal();
+            await _executePromoteUnprinted(creator, modelName, targetSlug);
         }
 
         async function promoteUnprintedToCatalog(creator, modelName) {
