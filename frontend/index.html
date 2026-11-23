@@ -23,7 +23,7 @@
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
                             Gilgarips PrintOps <span id="headerVersionBadge"
-                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.6.0
+                                class="text-xs bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded-full border border-indigo-500/30">v2.6.1
                                 Desktop</span>
                         </h1>
                         <p class="text-sm text-slate-400">Operational print-farm pricing, 3D spatial packaging solver,
@@ -999,7 +999,7 @@
                 </div>
                 <div class="border-t border-slate-800/80 pt-2.5 flex justify-between items-center">
                     <div class="text-xs text-slate-400">
-                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.6.0</strong>
+                        Application Version: <strong id="adminAppVersion" class="text-white font-mono">v2.6.1</strong>
                         <span id="adminUpdateStatusText" class="text-slate-500 ml-2">Checked automatically</span>
                     </div>
                     <button type="button" onclick="handleAppUpdateCheck(true)"
@@ -1152,7 +1152,7 @@
     </div>
 
     <script>
-        let appVersion = '2.6.0';
+        let appVersion = '2.6.1';
         let catalog = [];
         let printQueue = [];
         let unprintedStls = [];
@@ -2654,20 +2654,29 @@
             const dz = document.getElementById('unprintedDropzone');
             if (dz) dz.classList.remove('border-amber-400', 'bg-amber-950/20');
 
+            // Capture DataTransfer handles SYNCHRONOUSLY before any `await`,
+            // because Chromium/WebView2 clears DataTransfer after the first async yield.
+            const fallbackFiles = Array.from(event.dataTransfer.files || []);
             const items = Array.from(event.dataTransfer.items || []);
-            let collected = [];
+            const entries = [];
 
             if (items.length > 0 && typeof items[0].webkitGetAsEntry === 'function') {
                 for (const dtItem of items) {
-                    const entry = dtItem.webkitGetAsEntry();
-                    if (entry) {
-                        const res = await collectDroppedFilesWithPaths(entry, '');
-                        collected.push(...res);
+                    if (dtItem.kind === 'file') {
+                        const entry = dtItem.webkitGetAsEntry();
+                        if (entry) entries.push(entry);
                     }
                 }
-            } else {
-                const files = Array.from(event.dataTransfer.files || []);
-                collected = files.map(file => ({ file, relPath: file.webkitRelativePath || file.name }));
+            }
+
+            let collected = [];
+            if (entries.length > 0) {
+                for (const entry of entries) {
+                    const res = await collectDroppedFilesWithPaths(entry, '');
+                    collected.push(...res);
+                }
+            } else if (fallbackFiles.length > 0) {
+                collected = fallbackFiles.map(file => ({ file, relPath: file.webkitRelativePath || file.name }));
             }
 
             if (collected.length > 0) {
